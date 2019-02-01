@@ -1,6 +1,6 @@
 # Vanillin
 
-Vanillin is a DOM user interface library.
+Vanillin is a JavaScript DOM user interface library.
 
 Try it out at the [playground](http://metaes.org/playground.html).
 
