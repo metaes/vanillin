@@ -9,13 +9,13 @@ Try it out at the [playground](http://metaes.org/playground.html).
 For the latest stable version:
 
 ```bash
-npm install vanillin
+npm install vanillinjs
 ```
 
 For dev builds:
 
 ```bash
-npm install vanillin@dev
+npm install vanillinjs@dev
 ```
 
 ## Using Vanillin

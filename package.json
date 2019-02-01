@@ -1,7 +1,7 @@
 {
-  "name": "vanillin",
+  "name": "vanillinjs",
   "version": "0.1.0",
-  "description": "DOM user interface library",
+  "description": "JavaScript DOM user interface library",
   "bugs": {
     "url": "https://github.com/metaes/vanillin/issues"
   },
@@ -19,7 +19,7 @@
     "dist:compile": "tsc --project tsconfig-build.json",
     "dist:copy": "cp package.json README.md tsconfig.json webpack.config.js build/lib",
     "dist:dry": "npm run dist:compile; npm run dist:copy; cd build/lib; webpack; npm publish --dry-run",
-    "dist": "npm run dist:compile; npm run dist:copy; cd build/lib; npm publish",
+    "dist": "npm run dist:compile; npm run dist:copy; cd build/lib; webpack; npm publish",
     "webpack": "webpack"
   },
   "license": "MIT",
