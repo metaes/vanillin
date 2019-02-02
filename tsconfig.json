@@ -12,7 +12,10 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "composite": true
+    "declaration": false,
+    "paths": {
+      "metaes/*": ["node_modules/metaes/*"]
+    }
   },
   "include": ["lib/**/*.ts"],
   "exclude": ["lib/**/*.spec.ts", "test"]
