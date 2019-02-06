@@ -93,7 +93,7 @@ npm install vanillinjs@dev
 
 ## Documentation
 
-Available at [docs](http://metaes.org/docs-vanillin.html) page and on [GitHub](https://github.com/metaes/vanillin/tree/docs/main.md) repository.
+Available at [docs](http://metaes.org/docs-vanillin.html) page and on [GitHub](docs/main.md) repository.
 
 ## Development
 
