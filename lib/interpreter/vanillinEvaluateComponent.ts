@@ -7,7 +7,7 @@ import { ObservableContext } from "metaes/observable";
 import { ParseError } from "metaes/parse";
 import { callWithCurrentContinuation as callcc } from "metaes/callcc";
 import { Continuation, ErrorContinuation, MetaesFunction } from "metaes/types";
-import { bindDOM, getTemplate, VanillinEvaluationConfig } from "../vanillin-0";
+import { bindDOM, getTemplate, VanillinEvaluationConfig, bindEventHandlers } from "../vanillin-0";
 import { newEnvironmentFrom, returnValueOrNull } from "../vanillinEnvironment";
 
 type ComponentConstructorResult = {
@@ -18,7 +18,7 @@ type ComponentConstructorResult = {
 
 // TODO: Environment shouldn't be a plain object?
 export type ComponentConstructorArgs = [HTMLElement, (Node & ChildNode)[], Environment, VanillinEvaluationConfig];
-export type ComponentConstructor = ((...args: ComponentConstructorArgs) => void | ComponentConstructorResult);
+export type ComponentConstructor = (...args: ComponentConstructorArgs) => void | ComponentConstructorResult;
 
 export interface ComponentDefinition {
   name: string;
@@ -134,7 +134,7 @@ export function VanillinEvaluateComponent(
     bodyDOM?: HTMLElement | NodeList | HTMLElement[] | Node[] | Node;
 
     // Maybe wait for constructor onbind method being assigned and run it at the end if avaiable.
-    onbind?: (() => void);
+    onbind?: () => void;
   } = { childrenEnv: closureEnvironment };
 
   function handleTemplate(template: undefined | typeof state.bodyDOM) {
@@ -266,18 +266,14 @@ export function VanillinEvaluateComponent(
    * It represents concept of static reference biding.
    * It shouldn't see runtime surrounding values (a.k.a. dynamic binding).
    */
-  const bindBodyDOM = (bodyDOM, c, cerr) => {
-    bindDOM(bodyDOM, c, cerr, state.bodyEnv, config);
-  };
+  const bindBodyDOM = (bodyDOM, c, cerr) => bindDOM(bodyDOM, c, cerr, state.bodyEnv, config);
 
   /**
    * Run component passed in children DOM arguments only with surrounding component closure
    * plus `closure` attribute evaluated value which extracts values from JavaScript part.
    * It mutates children environment in a controlled way.
    */
-  const bindChildrenElements = (_, c, cerr) => {
-    bindDOM(childrenElements, c, cerr, state.childrenEnv, config);
-  };
+  const bindChildrenElements = (_, c, cerr) => bindDOM(childrenElements, c, cerr, state.childrenEnv, config);
 
   /**
    * body is just a JavaScript vanilla function, run it.
@@ -297,6 +293,7 @@ export function VanillinEvaluateComponent(
     if (state.onbind) {
       state.onbind();
     }
+    bindEventHandlers(element, closureEnvironment, config);
   }
 
   function runner(
@@ -320,15 +317,13 @@ export function VanillinEvaluateComponent(
     _await(bindChildrenElements);
     onbindCall();
   }
-
   const runnerMetaesFunction: MetaesFunction = {
     e: ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
       .expression as FunctionNode,
     closure: closureEnvironment,
     config
   };
-
-  evaluateMetaFunction(runnerMetaesFunction, c, cerr, undefined, [
+  const args = [
     callcc,
     handleTemplate,
     evalParamsAndArgs,
@@ -339,5 +334,6 @@ export function VanillinEvaluateComponent(
     onbindCall,
     definition.options,
     getTemplate
-  ]);
+  ];
+  evaluateMetaFunction(runnerMetaesFunction, c, cerr, undefined, args);
 }

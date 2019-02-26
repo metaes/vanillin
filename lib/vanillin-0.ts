@@ -327,7 +327,7 @@ function vanillinFunctionDeclaration(element, environment, config: VanillinEvalu
   }
 }
 
-function bindEventHandlers(element, environment, config: VanillinEvaluationConfig) {
+export function bindEventHandlers(element, environment, config: VanillinEvaluationConfig) {
   const { context } = config;
 
   for (const attr of element.attributes) {
