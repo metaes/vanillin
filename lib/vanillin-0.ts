@@ -1,4 +1,4 @@
-import { visitArray } from "metaes/applyEval";
+import { visitArray } from "metaes/evaluate";
 import { Environment, toEnvironment, getEnvironmentForValue } from "metaes/environment";
 import { createScript } from "metaes/metaes";
 import { ASTNode } from "metaes/nodes/nodes";

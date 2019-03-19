@@ -1,9 +1,8 @@
 import { Environment } from "metaes/environment";
 import { createScript } from "metaes/metaes";
-import { walkTree } from "metaes/nodes/nodes";
 import { EvaluationListener } from "metaes/observable";
 import { callWithCurrentContinuation as callcc } from "metaes/callcc";
-import { Continuation, Evaluation } from "metaes/types";
+import { Continuation, Evaluation, ASTNode } from "metaes/types";
 import {
   ArrayUpdatingMethods,
   collectObservableVars,
@@ -11,6 +10,28 @@ import {
   VanillinEvaluateElement,
   VanillinEvaluationConfig
 } from "../vanillin-0";
+
+const isNode = (node: ASTNode, key: string) => {
+  const value = node[key];
+  return key !== "range" && value && (Array.isArray(value) || (typeof value === "object" && "type" in value));
+};
+
+const getNodeChildren = (node: ASTNode) =>
+  Object.keys(node)
+    .filter(isNode.bind(null, node))
+    .map(name => ({ key: name, value: node[name] }));
+
+const walkTree = (node: ASTNode, visitor: (node: ASTNode) => void) =>
+  (function _walkTree(node) {
+    if (Array.isArray(node)) {
+      node.forEach(_walkTree);
+    } else {
+      visitor(node);
+      if (typeof node === "object") {
+        getNodeChildren(node).forEach(({ value }) => _walkTree(value));
+      }
+    }
+  })(node);
 
 export function VanillinFor({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   const { context } = config;

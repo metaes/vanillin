@@ -1,4 +1,4 @@
-import { visitArray } from "metaes/applyEval";
+import { visitArray } from "metaes/evaluate";
 import { Environment } from "metaes/environment";
 import { createScript, parseFunction } from "metaes/metaes";
 import { evaluateMetaFunction } from "metaes/metafunction";
