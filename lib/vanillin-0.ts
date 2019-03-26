@@ -1,14 +1,14 @@
 import { visitArray } from "metaes/evaluate";
-import { Environment, toEnvironment, getEnvironmentForValue } from "metaes/environment";
+import { Environment, toEnvironment, getEnvironmentForValue, GetValueSync } from "metaes/environment";
 import { createScript } from "metaes/metaes";
-import { ASTNode } from "metaes/nodes/nodes";
+import { ASTNode } from "metaes/types";
 import { MemberExpression } from "metaes/nodeTypes";
 import { EvaluationListener, ObservableContext } from "metaes/observable";
 import { Continuation, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
 import { COMPONENT_ATTRIBUTE_NAME, ComponentOptions } from "./interpreter/vanillinEvaluateComponent";
 import { VanillinInterpreters } from "./interpreter/vanillinInterpreters";
 import { GetVanillinLib } from "./vanillin-lib";
-import { defineComponent, returnValueOrNull } from "./vanillinEnvironment";
+import { defineComponent } from "./vanillinEnvironment";
 
 export function evalCollect(
   { results, script }: { results: ObservableResult[]; script: Script },
@@ -268,7 +268,7 @@ export function VanillinEvaluateElement(
     vanillinFunctionDeclaration(element, environment, config);
   } else if (
     (hasAttrs && element.hasAttribute(COMPONENT_ATTRIBUTE_NAME)) ||
-    returnValueOrNull(config.interpreters, nodeName)
+    GetValueSync(nodeName, config.interpreters)
   ) {
     statements.push("VanillinEvaluateComponent");
   } else if (nodeName === "script" && element.textContent) {

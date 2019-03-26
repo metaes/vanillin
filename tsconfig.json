@@ -3,7 +3,7 @@
   "compilerOptions": {
     "lib": ["es6", "dom", "es2016.array.include"],
     "baseUrl": ".",
-    "module": "amd",
+    "module": "commonjs",
     "target": "es2018",
     "sourceMap": true,
     "strictNullChecks": true,
@@ -14,8 +14,9 @@
     "noFallthroughCasesInSwitch": true,
     "declaration": false,
     "paths": {
-      "metaes/*": ["node_modules/metaes/*"]
-    }
+      "metaes/*": ["node_modules/metaes/lib/*"],
+      "vanillinjs/*": ["node_modules/vanillinjs/lib/*"]
+    },
   },
   "include": ["lib/**/*.ts"],
   "exclude": ["lib/**/*.spec.ts", "test"]

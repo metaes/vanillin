@@ -1,7 +1,7 @@
 import { Environment } from "metaes/environment";
 import { createScript } from "metaes/metaes";
 import { EvaluationListener } from "metaes/observable";
-import { callWithCurrentContinuation as callcc } from "metaes/callcc";
+import { callcc } from "metaes/callcc";
 import { Continuation, Evaluation, ASTNode } from "metaes/types";
 import {
   ArrayUpdatingMethods,

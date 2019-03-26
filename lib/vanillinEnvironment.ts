@@ -1,22 +1,5 @@
-import { Environment, GetValue, SetValue } from "metaes/environment";
+import { Environment, SetValue } from "metaes/environment";
 import { ComponentConstructor, ComponentOptions } from "./interpreter/vanillinEvaluateComponent";
-
-function noop() {}
-
-export function returnValue(env: Environment, name: string) {
-  let result, error;
-  GetValue({ name }, c => (result = c), e => (error = e), env);
-  if (error) {
-    throw error;
-  }
-  return result;
-}
-
-export function returnValueOrNull(env: Environment, name: string) {
-  let result;
-  GetValue({ name }, c => (result = c), noop, env);
-  return result;
-}
 
 export function setValueSync(env: Environment, name: string, value: any, isDeclaration: boolean) {
   let result, error;

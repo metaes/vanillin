@@ -1,14 +1,14 @@
 import { visitArray } from "metaes/evaluate";
-import { Environment } from "metaes/environment";
+import { Environment, GetValueSync } from "metaes/environment";
 import { createScript, parseFunction } from "metaes/metaes";
 import { evaluateMetaFunction } from "metaes/metafunction";
 import { ExpressionStatement, FunctionNode, Program } from "metaes/nodeTypes";
 import { ObservableContext } from "metaes/observable";
 import { ParseError } from "metaes/parse";
-import { callWithCurrentContinuation as callcc } from "metaes/callcc";
+import { callcc } from "metaes/callcc";
 import { Continuation, ErrorContinuation, MetaesFunction } from "metaes/types";
 import { bindDOM, getTemplate, VanillinEvaluationConfig, bindEventHandlers } from "../vanillin-0";
-import { newEnvironmentFrom, returnValueOrNull } from "../vanillinEnvironment";
+import { newEnvironmentFrom } from "../vanillinEnvironment";
 
 type ComponentConstructorResult = {
   environment?: { [key: string]: any };
@@ -88,7 +88,7 @@ export function VanillinEvaluateComponent(
 
   const byAttribute = element.hasAttribute(COMPONENT_ATTRIBUTE_NAME);
   const componentName = byAttribute ? element.getAttribute(COMPONENT_ATTRIBUTE_NAME)! : element.nodeName.toLowerCase();
-  const definition: ComponentDefinition = returnValueOrNull(interpreters, componentName);
+  const definition: ComponentDefinition = GetValueSync(componentName, interpreters);
   if (!definition) {
     cerr(new Error(`Can't find "${componentName}" component`));
     return;
