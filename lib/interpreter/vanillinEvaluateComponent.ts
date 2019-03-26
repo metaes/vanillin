@@ -9,6 +9,7 @@ import { callcc } from "metaes/callcc";
 import { Continuation, ErrorContinuation, MetaesFunction } from "metaes/types";
 import { bindDOM, getTemplate, VanillinEvaluationConfig, bindEventHandlers } from "../vanillin-0";
 import { newEnvironmentFrom } from "../vanillinEnvironment";
+import { getTrampoliningScheduler } from "../scheduler";
 
 type ComponentConstructorResult = {
   environment?: { [key: string]: any };
@@ -321,7 +322,7 @@ export function VanillinEvaluateComponent(
     e: ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
       .expression as FunctionNode,
     closure: closureEnvironment,
-    config
+    config: Object.assign({ schedule: getTrampoliningScheduler() }, config)
   };
   const args = [
     callcc,
@@ -335,5 +336,22 @@ export function VanillinEvaluateComponent(
     definition.options,
     getTemplate
   ];
-  evaluateMetaFunction(runnerMetaesFunction, c, cerr, undefined, args);
+  let finished = false;
+  evaluateMetaFunction(
+    runnerMetaesFunction,
+    value => {
+      if (!finished) {
+        c(value);
+        finished = true;
+      }
+    },
+    cerr,
+    undefined,
+    args
+  );
+
+  if (element.hasAttribute("async")) {
+    finished = true;
+    c();
+  }
 }

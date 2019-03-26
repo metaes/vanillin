@@ -81,7 +81,13 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
       if (element.hasAttribute("async")) {
         // TODO: remember to collect and repeat here as well
         // Schedule execution and run whenever there is time for it
-        config.context.evaluate(script, r => (element.textContent = r), onError.bind(null, cerr), environment, config);
+        config.context.evaluate(
+          script,
+          r => (element.textContent = r),
+          onError.bind(null, cerr),
+          environment,
+          config
+        );
         // and continue anyway
         c();
       } else {

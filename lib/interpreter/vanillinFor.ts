@@ -10,6 +10,7 @@ import {
   VanillinEvaluateElement,
   VanillinEvaluationConfig
 } from "../vanillin-0";
+import { getTrampoliningScheduler } from "../scheduler";
 
 const isNode = (node: ASTNode, key: string) => {
   const value = node[key];
@@ -158,7 +159,13 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         while (itemsContainer.firstChild) {
           itemsContainer.removeChild(itemsContainer.firstChild);
         }
-        context.evaluate(script, console.log, cerr, loopEnv, config);
+        context.evaluate(
+          script,
+          console.log,
+          cerr,
+          loopEnv,
+          Object.assign({ schedule: getTrampoliningScheduler() }, config)
+        );
       }
     }
 
@@ -258,7 +265,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         cerr(e);
       },
       loopEnv,
-      config
+      Object.assign({ schedule: getTrampoliningScheduler() }, config)
     );
   }
 
