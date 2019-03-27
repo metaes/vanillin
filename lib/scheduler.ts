@@ -1,12 +1,13 @@
-const hasPerformance = typeof performance === "object";
+const now = typeof performance === "object" ? () => performance.now() : () => new Date().getTime();
+
+// Obtain function that schedules work to be called as soon as possible.
+const callASAP = typeof requestIdleCallback === "function" ? requestIdleCallback : setTimeout;
 
 export function getTrampoliningScheduler(max_msIdle = 16) {
   const trampoline: any[] = [];
   let startTime;
   let trampolinePopping = false;
-  function now() {
-    return hasPerformance ? performance.now() : new Date().getTime();
-  }
+
   function trampolinePop() {
     startTime = now();
     trampolinePopping = true;
@@ -23,7 +24,7 @@ export function getTrampoliningScheduler(max_msIdle = 16) {
     if (startTime && now() - startTime > max_msIdle) {
       trampolinePopping = false;
       startTime = null;
-      (typeof requestIdleCallback === "function" ? requestIdleCallback : setTimeout)(function() {
+      callASAP(function() {
         trampoline.push(fn);
         trampolinePop();
       });
