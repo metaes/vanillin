@@ -9,6 +9,7 @@ import { COMPONENT_ATTRIBUTE_NAME, ComponentOptions } from "./interpreter/vanill
 import { VanillinInterpreters } from "./interpreter/vanillinInterpreters";
 import { GetVanillinLib } from "./vanillin-lib";
 import { defineComponent } from "./vanillinEnvironment";
+import { getTrampoliningScheduler } from "./scheduler";
 
 export function evalCollect(
   { results, script }: { results: ObservableResult[]; script: Script },
@@ -304,7 +305,7 @@ export function VanillinEvaluateElement(
       c,
       cerr,
       environment,
-      config
+      Object.assign({ schedule: getTrampoliningScheduler() }, config)
     );
   } else {
     c(element);
