@@ -1,11 +1,11 @@
 import { Environment } from "metaes/environment";
+import { NotImplementedException } from "metaes/exceptions";
 import { ECMAScriptInterpreters } from "metaes/interpreters";
 import { createScript } from "metaes/metaes";
 import { Continuation, ErrorContinuation } from "metaes/types";
 import { evalCollectObserve, vanillinEval, VanillinEvaluateElement, VanillinEvaluationConfig } from "../vanillin-0";
 import { VanillinEvaluateComponent } from "./vanillinEvaluateComponent";
 import { VanillinFor } from "./vanillinFor";
-import { NotImplementedException } from "metaes/exceptions";
 
 export function VanillinScriptElement({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   const source = element.textContent;
@@ -81,13 +81,7 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
       if (element.hasAttribute("async")) {
         // TODO: remember to collect and repeat here as well
         // Schedule execution and run whenever there is time for it
-        config.context.evaluate(
-          script,
-          r => (element.textContent = r),
-          onError.bind(null, cerr),
-          environment,
-          config
-        );
+        config.context.evaluate(script, r => (element.textContent = r), onError.bind(null, cerr), environment, config);
         // and continue anyway
         c();
       } else {
