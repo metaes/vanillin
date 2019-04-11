@@ -1,7 +1,11 @@
 {
   "compileOnSave": true,
   "compilerOptions": {
-    "lib": ["es6", "dom", "es2016.array.include"],
+    "lib": [
+      "es6",
+      "dom",
+      "es2016.array.include"
+    ],
     "baseUrl": ".",
     "module": "commonjs",
     "target": "es2018",
@@ -14,10 +18,16 @@
     "noFallthroughCasesInSwitch": true,
     "declaration": false,
     "paths": {
-      "metaes/*": ["node_modules/metaes/lib/*"],
-      "vanillinjs/*": ["node_modules/vanillinjs/lib/*"]
+      "metaes/*": [
+        "node_modules/metaes/lib/*"
+      ],
     },
   },
-  "include": ["lib/**/*.ts"],
-  "exclude": ["lib/**/*.spec.ts", "test"]
+  "include": [
+    "lib/**/*.ts"
+  ],
+  "exclude": [
+    "lib/**/*.spec.ts",
+    "test"
+  ]
 }

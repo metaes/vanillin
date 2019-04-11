@@ -1,15 +1,15 @@
+import { callcc } from "metaes/callcc";
+import { GetValueSync } from "metaes/environment";
 import { visitArray } from "metaes/evaluate";
-import { Environment, GetValueSync } from "metaes/environment";
 import { createScript, parseFunction } from "metaes/metaes";
 import { evaluateMetaFunction } from "metaes/metafunction";
 import { ExpressionStatement, FunctionNode, Program } from "metaes/nodeTypes";
-import { ObservableContext } from "metaes/observable";
 import { ParseError } from "metaes/parse";
-import { callcc } from "metaes/callcc";
-import { Continuation, ErrorContinuation, MetaesFunction } from "metaes/types";
-import { bindDOM, getTemplate, VanillinEvaluationConfig, bindEventHandlers } from "../vanillin-0";
-import { newEnvironmentFrom } from "../vanillinEnvironment";
+import { Continuation, Environment, ErrorContinuation, MetaesFunction } from "metaes/types";
+import { ObservableContext } from "../observable";
 import { getTrampoliningScheduler } from "../scheduler";
+import { bindDOM, bindEventHandlers, getTemplate, VanillinEvaluationConfig } from "../vanillin-0";
+import { newEnvironmentFrom } from "../vanillinEnvironment";
 
 type ComponentConstructorResult = {
   environment?: { [key: string]: any };
@@ -54,7 +54,7 @@ function evalMaybeExpression(source: string, c, cerr, closure: Environment, conf
     } catch (e) {
       return cerr(e);
     }
-    context.evaluate(script, c, cerr, closure, config);
+    context.evaluate(script, c, cerr, closure);
   };
 
   // First try to parse script with parens around, it's an optimistic case as it's expected for user to pass expressions.
