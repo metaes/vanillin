@@ -1,15 +1,14 @@
+import { getEnvironmentForValue, GetValueSync, toEnvironment } from "metaes/environment";
 import { visitArray } from "metaes/evaluate";
-import { Environment, toEnvironment, getEnvironmentForValue, GetValueSync } from "metaes/environment";
 import { createScript } from "metaes/metaes";
-import { ASTNode } from "metaes/types";
 import { MemberExpression } from "metaes/nodeTypes";
-import { EvaluationListener, ObservableContext } from "metaes/observable";
-import { Continuation, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
-import { COMPONENT_ATTRIBUTE_NAME, ComponentOptions } from "./interpreter/vanillinEvaluateComponent";
+import { ASTNode, Continuation, Environment, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
+import { ComponentOptions, COMPONENT_ATTRIBUTE_NAME } from "./interpreter/vanillinEvaluateComponent";
 import { VanillinInterpreters } from "./interpreter/vanillinInterpreters";
+import { EvaluationListener, ObservableContext } from "./observable";
+import { getTrampoliningScheduler } from "./scheduler";
 import { GetVanillinLib } from "./vanillin-lib";
 import { defineComponent } from "./vanillinEnvironment";
-import { getTrampoliningScheduler } from "./scheduler";
 
 export function evalCollect(
   { results, script }: { results: ObservableResult[]; script: Script },
