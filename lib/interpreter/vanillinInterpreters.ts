@@ -1,11 +1,11 @@
-import { Environment } from "metaes/environment";
 import { NotImplementedException } from "metaes/exceptions";
 import { ECMAScriptInterpreters } from "metaes/interpreters";
 import { createScript } from "metaes/metaes";
-import { Continuation, ErrorContinuation } from "metaes/types";
+import { Continuation, Environment, ErrorContinuation } from "metaes/types";
 import { evalCollectObserve, vanillinEval, VanillinEvaluateElement, VanillinEvaluationConfig } from "../vanillin-0";
 import { VanillinEvaluateComponent } from "./vanillinEvaluateComponent";
 import { VanillinFor } from "./vanillinFor";
+import { defaultScheduler } from "metaes/evaluate";
 
 export function VanillinScriptElement({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   const source = element.textContent;
@@ -36,7 +36,7 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
         cerr(e);
       },
       environment,
-      config
+      Object.assign({}, config, { schedule: defaultScheduler })
     );
   }
 }
