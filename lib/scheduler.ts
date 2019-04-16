@@ -1,4 +1,4 @@
-// Obtain function that schedules work to be called as soon as possible.
+// Obtain function that schedules work to be called as soon as possible, but not immediately.
 const callASAP = typeof requestIdleCallback === "function" ? requestIdleCallback : setTimeout;
 
 export function getTrampoliningScheduler(max_msIdle = 16) {

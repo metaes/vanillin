@@ -1,8 +1,9 @@
-import { Environment } from "metaes/environment";
-import { createScript } from "metaes/metaes";
-import { EvaluationListener } from "metaes/observable";
 import { callcc } from "metaes/callcc";
-import { Continuation, Evaluation, ASTNode } from "metaes/types";
+import { defaultScheduler } from "metaes/evaluate";
+import { createScript } from "metaes/metaes";
+import { ASTNode, Continuation, Environment, Evaluation } from "metaes/types";
+import { EvaluationListener } from "../observable";
+import { getTrampoliningScheduler } from "../scheduler";
 import {
   ArrayUpdatingMethods,
   collectObservableVars,
@@ -10,7 +11,6 @@ import {
   VanillinEvaluateElement,
   VanillinEvaluationConfig
 } from "../vanillin-0";
-import { getTrampoliningScheduler } from "../scheduler";
 
 const isNode = (node: ASTNode, key: string) => {
   const value = node[key];
@@ -265,7 +265,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         cerr(e);
       },
       loopEnv,
-      Object.assign({ schedule: getTrampoliningScheduler() }, config)
+      Object.assign({}, config, { schedule: defaultScheduler })
     );
   }
 
