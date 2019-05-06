@@ -138,7 +138,7 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
-  extra?: (e: HTMLElement, statements: string[]) => void;
+  extra?: (e: HTMLElement, env: Environment, statements: string[]) => void;
 }
 
 export function stringToDOM(source: string) {
