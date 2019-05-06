@@ -1,4 +1,5 @@
-import { Environment, SetValue } from "metaes/environment";
+import { SetValue } from "metaes/environment";
+import { Environment } from "metaes/types";
 import { ComponentConstructor, ComponentOptions } from "./interpreter/vanillinEvaluateComponent";
 
 export function setValueSync(env: Environment, name: string, value: any, isDeclaration: boolean) {

@@ -138,6 +138,7 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
+  extra?: (e: HTMLElement, statements: string[]) => void;
 }
 
 export function stringToDOM(source: string) {
@@ -256,8 +257,7 @@ export function VanillinEvaluateElement(
   config: VanillinEvaluationConfig
 ) {
   const hasAttrs = !!element.attributes.length;
-  const statements: any = [];
-
+  const statements: string[] = [];
   const nodeName = element.nodeName.toLowerCase();
 
   if (hasAttrs && element.hasAttribute("if")) {
@@ -285,6 +285,9 @@ export function VanillinEvaluateElement(
       }
       if (element.hasAttribute("script")) {
         statements.push("VanillinScriptAttribute");
+      }
+      if (config.extra) {
+        config.extra(element, environment, statements);
       }
     }
     if (element.children.length) {
