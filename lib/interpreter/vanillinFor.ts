@@ -159,13 +159,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         while (itemsContainer.firstChild) {
           itemsContainer.removeChild(itemsContainer.firstChild);
         }
-        context.evaluate(
-          script,
-          console.log,
-          cerr,
-          loopEnv,
-          Object.assign({ schedule: getTrampoliningScheduler() }, config)
-        );
+        context.evaluate(script, console.log, cerr, loopEnv, { schedule: getTrampoliningScheduler(), ...config });
       }
     }
 
@@ -265,7 +259,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         cerr(e);
       },
       loopEnv,
-      Object.assign({}, config, { schedule: defaultScheduler })
+      { ...config, schedule: defaultScheduler }
     );
   }
 

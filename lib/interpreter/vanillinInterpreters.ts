@@ -32,11 +32,11 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
       script,
       c,
       e => {
-        console.error(Object.assign({ element, source, environment }, e));
+        console.error({ element, source, environment, ...e });
         cerr(e);
       },
       environment,
-      Object.assign({}, config, { schedule: defaultScheduler })
+      { ...config, schedule: defaultScheduler }
     );
   }
 }
@@ -175,7 +175,7 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
       }
     },
     e => {
-      console.error(Object.assign({ element, source, environment }, e));
+      console.error({ element, source, environment, ...e });
       cerr(e);
     },
     environment,

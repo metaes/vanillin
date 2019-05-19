@@ -203,7 +203,7 @@ export function bindDOM(
     if (typeof dom === "string") {
       dom = stringToDOM(dom) as NodeList | HTMLElement;
     }
-    config.vanillin = Object.assign({}, GetVanillinLib(), config.vanillin || {});
+    config.vanillin = { ...GetVanillinLib(), ...config.vanillin };
     config.interpreters = toEnvironment(config.interpreters || VanillinInterpreters);
     if (!config.interpreters.prev) {
       config.interpreters.prev = VanillinInterpreters;
@@ -307,7 +307,7 @@ export function VanillinEvaluateElement(
       c,
       cerr,
       environment,
-      Object.assign({ schedule: getTrampoliningScheduler() }, config)
+      { schedule: getTrampoliningScheduler(), ...config }
     );
   } else {
     c(element);
