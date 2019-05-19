@@ -286,12 +286,12 @@ export function VanillinEvaluateElement(
       if (element.hasAttribute("script")) {
         statements.push("VanillinScriptAttribute");
       }
-      if (config.extra) {
-        config.extra(element, environment, statements);
-      }
     }
     if (element.children.length) {
       statements.push("VanillinEvaluateChildren");
+    }
+    if (config.extra) {
+      config.extra(element, environment, statements);
     }
   }
 
