@@ -130,6 +130,7 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
   // TODO: it should be handled by success continuation when script evaluates for the first time
   let done = false;
   const source = element.getAttribute("if");
+  // previousElSibling should be resolved immediately before inserting element to DOM
   const previousElSibling = element.previousElementSibling;
   const parent = element.parentNode as HTMLElement;
   const template = element.cloneNode(true);
