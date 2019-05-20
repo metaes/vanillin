@@ -203,7 +203,7 @@ export function bindDOM(
     if (typeof dom === "string") {
       dom = stringToDOM(dom) as NodeList | HTMLElement;
     }
-    config.vanillin = Object.assign({}, GetVanillinLib(), config.vanillin || {});
+    config.vanillin = { ...GetVanillinLib(), ...config.vanillin };
     config.interpreters = toEnvironment(config.interpreters || VanillinInterpreters);
     if (!config.interpreters.prev) {
       config.interpreters.prev = VanillinInterpreters;
@@ -286,12 +286,12 @@ export function VanillinEvaluateElement(
       if (element.hasAttribute("script")) {
         statements.push("VanillinScriptAttribute");
       }
-      if (config.extra) {
-        config.extra(element, environment, statements);
-      }
     }
     if (element.children.length) {
       statements.push("VanillinEvaluateChildren");
+    }
+    if (config.extra) {
+      config.extra(element, environment, statements);
     }
   }
 
@@ -307,7 +307,7 @@ export function VanillinEvaluateElement(
       c,
       cerr,
       environment,
-      Object.assign({ schedule: getTrampoliningScheduler() }, config)
+      { schedule: getTrampoliningScheduler(), ...config }
     );
   } else {
     c(element);

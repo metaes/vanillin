@@ -43,7 +43,8 @@ export class ObservableContext extends MetaesContext {
       undefined,
       undefined,
       { values: { self: target }, prev: { values: target } },
-      Object.assign({}, config, {
+      {
+        ...config,
         interceptor: (evaluation: Evaluation) => {
           this._flameGraphBuilder("before", evaluation);
           try {
@@ -54,7 +55,7 @@ export class ObservableContext extends MetaesContext {
           }
           this._flameGraphBuilder("after", evaluation);
         }
-      }),
+      },
       createCache()
     );
     if (mainTraps) {

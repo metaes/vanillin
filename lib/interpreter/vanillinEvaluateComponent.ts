@@ -100,7 +100,7 @@ export function VanillinEvaluateComponent(
   } = definition;
 
   // Convert children to array to keep DOM elements references alive
-  const childrenElements = Array.from(element.children) as HTMLElement[];
+  const slottedElements = Array.from(element.children) as HTMLElement[];
 
   let usesTemplate = false;
 
@@ -193,7 +193,11 @@ export function VanillinEvaluateComponent(
 
   function onArguments({ argumentsAttrObject, namedArguments }, c, cerr) {
     state.bodyEnv = newEnvironmentFrom(
-      Object.assign({}, { arguments: Object.assign({}, argumentsAttrObject, namedArguments) }, namedArguments),
+      {
+        arguments: { ...argumentsAttrObject, ...namedArguments },
+        ...namedArguments,
+        slottedElements
+      },
       definition.options.closure || { values: {} }
     );
 
@@ -209,10 +213,10 @@ export function VanillinEvaluateComponent(
       }
       const ctorArguments: ComponentConstructorArgs = [
         element,
-        childrenElements,
+        slottedElements,
         state.bodyEnv,
         // New registry environment for each component instance. It's like a function call.
-        Object.assign({}, config, { interpreters: { values: {}, prev: config.interpreters } })
+        { ...config, ...{ interpreters: { values: {}, prev: config.interpreters } } }
       ];
       const constructorResult = constructor(...ctorArguments);
 
@@ -274,7 +278,7 @@ export function VanillinEvaluateComponent(
    * plus `closure` attribute evaluated value which extracts values from JavaScript part.
    * It mutates children environment in a controlled way.
    */
-  const bindChildrenElements = (_, c, cerr) => bindDOM(childrenElements, c, cerr, state.childrenEnv, config);
+  const bindChildrenElements = (_, c, cerr) => bindDOM(slottedElements, c, cerr, state.childrenEnv, config);
 
   /**
    * body is just a JavaScript vanilla function, run it.
@@ -286,7 +290,7 @@ export function VanillinEvaluateComponent(
     if (usesTemplate && slotSelector) {
       const slot = slotSelector ? element.querySelector(slotSelector) : element;
       if (slot) {
-        childrenElements.forEach(child => slot.appendChild(child));
+        slottedElements.forEach(child => slot.appendChild(child));
       } else {
         throw new Error("Can't find slot for children.");
       }
@@ -322,7 +326,7 @@ export function VanillinEvaluateComponent(
     e: ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
       .expression as FunctionNode,
     closure: closureEnvironment,
-    config: Object.assign({ schedule: getTrampoliningScheduler() }, config)
+    config: { schedule: getTrampoliningScheduler(), ...config }
   };
   const args = [
     callcc,
