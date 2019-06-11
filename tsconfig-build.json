@@ -16,6 +16,6 @@
     "composite": true,
     "declaration": true
   },
-  "include": ["lib/**/*.ts"],
+  "include": ["lib/**/*.ts", "node_modules/metaes/**/*.ts"],
   "exclude": ["lib/**/*.spec.ts", "test"]
 }

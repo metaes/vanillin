@@ -112,7 +112,7 @@ export function VanillinElementAttributes({ element }, c, _cerr, environment, co
   const boundAttrs = element.getAttribute("bind-attrs").split(",");
 
   boundAttrs.forEach(attrName => {
-    const source = element.getAttribute(attrName);
+    const source = element.getAttribute(attrName.toString().trim());
     const script = createScript(source, config.context.cache);
 
     evalCollectObserve(
