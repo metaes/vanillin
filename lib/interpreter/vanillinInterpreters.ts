@@ -203,8 +203,36 @@ export function VanillinEvaluateChildren(
   }
 }
 
+export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvaluationConfig) {
+  const receiverSource = element.getAttribute("callcc");
+  element.removeAttribute("callcc");
+  config.context.evaluate(
+    createScript(receiverSource, config.context.cache),
+    function(receiver) {
+      if (element.hasAttribute("async")) {
+        receiver(
+          element,
+          // if element has @async prop then upon returning to evaluation the only thing you care about
+          // is rendering this element and its descendants. Don't care about further evaluation, i.e. of adjacent elements.
+          () => VanillinEvaluateElement(element, console.log, console.error, env, config),
+          cerr
+        );
+        // continue evaluation right away
+        c();
+      } else {
+        // @async is not present. Stop everything and wait for receiver to resume.
+        receiver(element, c, cerr);
+      }
+    },
+    cerr,
+    env,
+    config
+  );
+}
+
 export const VanillinInterpreters: Environment = {
   values: {
+    VanillinCallcc,
     VanillinIf,
     VanillinFor,
     VanillinEvaluateChildren,

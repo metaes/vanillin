@@ -260,7 +260,9 @@ export function VanillinEvaluateElement(
   const statements: string[] = [];
   const nodeName = element.nodeName.toLowerCase();
 
-  if (hasAttrs && element.hasAttribute("if")) {
+  if (hasAttrs && element.hasAttribute("callcc")) {
+    statements.push("VanillinCallcc");
+  } else if (hasAttrs && element.hasAttribute("if")) {
     statements.push("VanillinIf");
   } else if (hasAttrs && element.hasAttribute("for") && nodeName !== "label") {
     statements.push("VanillinFor");
@@ -297,13 +299,10 @@ export function VanillinEvaluateElement(
 
   if (statements.length) {
     config.context.evaluate(
-      createScript(
-        {
-          type: "BlockStatement",
-          body: statements.map(type => ({ type, element }))
-        },
-        config.context.cache
-      ),
+      {
+        type: "BlockStatement",
+        body: statements.map(type => ({ type, element }))
+      },
       c,
       cerr,
       environment,
