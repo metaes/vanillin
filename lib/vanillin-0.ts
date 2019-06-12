@@ -235,7 +235,7 @@ export function vanillinEval(
   env: Environment,
   config: Partial<VanillinEvaluationConfig> = {}
 ) {
-  if (dom instanceof NodeList || Array.isArray(dom)) {
+  if (dom instanceof NodeList || Array.isArray(dom) || dom instanceof HTMLCollection) {
     visitArray(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
         child => child.nodeType === Node.ELEMENT_NODE

@@ -14,10 +14,10 @@ export const load = <T>(path: string) => (..._: ComponentConstructorArgs) =>
         reject(new Error(`Loaded module '${path}' didn't export default value.`));
       }
       document.body.removeChild(script);
-      delete window.exports;
+      // delete window.exports;
     });
     script.addEventListener("error", e => {
-      delete window.exports;
+      // delete window.exports;
       document.body.removeChild(script);
       reject(e);
     });
