@@ -111,13 +111,14 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
 export function VanillinElementAttributes({ element }, c, _cerr, environment, config: VanillinEvaluationConfig) {
   const boundAttrs = element.getAttribute("bind-attrs").split(",");
 
-  boundAttrs.forEach(attrName => {
-    const source = element.getAttribute(attrName.toString().trim());
+  boundAttrs.forEach(function(attrName) {
+    const attrNameCleaned = attrName.trim();
+    const source = element.getAttribute(attrNameCleaned);
     const script = createScript(source, config.context.cache);
 
     evalCollectObserve(
       script,
-      value => (element[attrName] = value),
+      value => (element[attrNameCleaned] = value),
       e => console.error({ element, e, source, environment }),
       environment,
       config

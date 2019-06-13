@@ -68,6 +68,7 @@ export function evalCollectObserve(
       }
     });
   }
+  
   const results: ObservableResult[] = [];
   evalCollect(
     { results, script },
@@ -138,7 +139,6 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
-  extra?: (e: HTMLElement, env: Environment, statements: string[]) => void;
 }
 
 export function stringToDOM(source: string) {
@@ -289,11 +289,11 @@ export function VanillinEvaluateElement(
         statements.push("VanillinScriptAttribute");
       }
     }
+    if (GetValueSync("VanillinExtra", config.interpreters)) {
+      statements.push("VanillinExtra");
+    }
     if (element.children.length) {
       statements.push("VanillinEvaluateChildren");
-    }
-    if (config.extra) {
-      config.extra(element, environment, statements);
     }
   }
 
