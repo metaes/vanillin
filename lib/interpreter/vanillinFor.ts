@@ -40,6 +40,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
   // Prepare template
   const template = element.cloneNode(true) as HTMLElement;
   template.removeAttribute("for");
+  let lastItemAnchor = element.previousElementSibling as HTMLElement;
   const parent = element.parentNode as HTMLElement;
   parent.removeChild(element);
 
@@ -124,7 +125,13 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
   }
 
   const evaluateNextItem = (nextElement: HTMLElement, c, cerr, env: Environment) => {
-    itemsContainer.appendChild(nextElement);
+    if (lastItemAnchor) {
+      lastItemAnchor.insertAdjacentElement("afterend", nextElement);
+    } else {
+      itemsContainer.appendChild(nextElement);
+    }
+    lastItemAnchor = nextElement;
+
     VanillinEvaluateElement(
       nextElement,
       c,

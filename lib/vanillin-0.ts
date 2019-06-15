@@ -68,6 +68,7 @@ export function evalCollectObserve(
       }
     });
   }
+  
   const results: ObservableResult[] = [];
   evalCollect(
     { results, script },
@@ -138,7 +139,6 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
-  extra?: (e: HTMLElement, env: Environment, statements: string[]) => void;
 }
 
 export function stringToDOM(source: string) {
@@ -235,7 +235,7 @@ export function vanillinEval(
   env: Environment,
   config: Partial<VanillinEvaluationConfig> = {}
 ) {
-  if (dom instanceof NodeList || Array.isArray(dom)) {
+  if (dom instanceof NodeList || Array.isArray(dom) || dom instanceof HTMLCollection) {
     visitArray(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
         child => child.nodeType === Node.ELEMENT_NODE
@@ -260,7 +260,9 @@ export function VanillinEvaluateElement(
   const statements: string[] = [];
   const nodeName = element.nodeName.toLowerCase();
 
-  if (hasAttrs && element.hasAttribute("if")) {
+  if (hasAttrs && element.hasAttribute("callcc")) {
+    statements.push("VanillinCallcc");
+  } else if (hasAttrs && element.hasAttribute("if")) {
     statements.push("VanillinIf");
   } else if (hasAttrs && element.hasAttribute("for") && nodeName !== "label") {
     statements.push("VanillinFor");
@@ -287,23 +289,20 @@ export function VanillinEvaluateElement(
         statements.push("VanillinScriptAttribute");
       }
     }
+    if (GetValueSync("VanillinExtra", config.interpreters)) {
+      statements.push("VanillinExtra");
+    }
     if (element.children.length) {
       statements.push("VanillinEvaluateChildren");
-    }
-    if (config.extra) {
-      config.extra(element, environment, statements);
     }
   }
 
   if (statements.length) {
     config.context.evaluate(
-      createScript(
-        {
-          type: "BlockStatement",
-          body: statements.map(type => ({ type, element }))
-        },
-        config.context.cache
-      ),
+      {
+        type: "BlockStatement",
+        body: statements.map(type => ({ type, element }))
+      },
       c,
       cerr,
       environment,
