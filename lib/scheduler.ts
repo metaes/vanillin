@@ -1,5 +1,6 @@
 // Obtain function that schedules work to be called as soon as possible, but not immediately.
-const callASAP = typeof requestIdleCallback === "function" ? requestIdleCallback : setTimeout;
+// Currently don't use requestIdleCallback, it can take even seconds before callback is called.
+const callASAP = setTimeout;
 
 export function getTrampoliningScheduler(max_msIdle = 16) {
   const trampoline: any[] = [];
