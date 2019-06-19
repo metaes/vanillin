@@ -150,6 +150,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
   const observableResults: ObservableResult[] = [];
   let observablesListener: EvaluationListener | null = collectObservableVars(
     observableResults.push.bind(observableResults),
+    script,
     environment
   );
   context.addListener(observablesListener);
@@ -166,7 +167,11 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         while (itemsContainer.firstChild) {
           itemsContainer.removeChild(itemsContainer.firstChild);
         }
-        context.evaluate(script, console.log, cerr, loopEnv, { schedule: getTrampoliningScheduler(), ...config });
+        context.evaluate(script, console.log, cerr, loopEnv, {
+          schedule: getTrampoliningScheduler(),
+          ...config,
+          script
+        });
       }
     }
 
@@ -266,7 +271,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         cerr(e);
       },
       loopEnv,
-      { ...config, schedule: defaultScheduler }
+      { ...config, script, schedule: defaultScheduler }
     );
   }
 

@@ -18,7 +18,7 @@ export function evalCollect(
   config: VanillinEvaluationConfig
 ) {
   const context = config.context;
-  const collector = collectObservableVars(result => results.push(result), environment);
+  const collector = collectObservableVars(result => results.push(result), script, environment);
   context.addListener(collector);
   context.evaluate(
     script,
@@ -32,7 +32,7 @@ export function evalCollect(
       cerr(e);
     },
     environment,
-    config
+    { ...config, script }
   );
 }
 
@@ -48,7 +48,7 @@ export function evalCollectObserve(
   config: VanillinEvaluationConfig
 ) {
   const { context } = config;
-  const evaluate = () => context.evaluate(script, c, cerr, environment, config);
+  const evaluate = () => context.evaluate(script, c, cerr, environment, { ...config, script });
 
   function add(target: ObservableResult) {
     const { object, property } = target;
@@ -68,7 +68,7 @@ export function evalCollectObserve(
       }
     });
   }
-  
+
   const results: ObservableResult[] = [];
   evalCollect(
     { results, script },
@@ -109,16 +109,16 @@ export type ObservableResult = {
  */
 export const collectObservableVars = (
   resultsCallback: (result: ObservableResult) => void,
+  script: Script,
   bottomEnvironment: Environment
 ): EvaluationListener => {
   let _env: Environment = bottomEnvironment;
   while (_env.prev) {
     _env = _env.prev;
   }
-  return ({ e, phase }, graph) => {
-    if (phase === "exit") {
+  return ({ e, phase, config }, graph) => {
+    if (phase === "exit" && config.script === script) {
       const stack = graph.executionStack;
-
       // Ignore checking when sitting inside deeper member expression
       if (stack.length > 1 && stack[stack.length - 2].evaluation.e.type === "MemberExpression") {
         return;
@@ -292,7 +292,7 @@ export function VanillinEvaluateElement(
     if (GetValueSync("VanillinExtra", config.interpreters)) {
       statements.push("VanillinExtra");
     }
-    if (element.children.length) {
+    if (element.children.length && !(element instanceof HTMLTemplateElement)) {
       statements.push("VanillinEvaluateChildren");
     }
   }
@@ -357,7 +357,8 @@ export function bindEventHandlers(element, environment, config: VanillinEvaluati
           // ignore success value
           undefined,
           error => console.error({ env, source, eventName, event, element, error }),
-          env
+          env,
+          { ...config, script }
         );
       } catch (e) {
         console.error({ e, element, source });
