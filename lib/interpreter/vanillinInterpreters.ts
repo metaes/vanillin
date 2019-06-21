@@ -220,7 +220,9 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
           // if element has @async prop then upon returning to evaluation the only thing you care about
           // is rendering this element and its descendants. Don't care about further evaluation, i.e. of adjacent elements.
           () => VanillinEvaluateElement(element, console.log, console.error, env, config),
-          cerr
+          cerr,
+          env,
+          config
         );
         // continue evaluation right away
         c();
