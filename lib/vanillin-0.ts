@@ -1,5 +1,5 @@
 import { getEnvironmentForValue, GetValueSync, toEnvironment } from "metaes/environment";
-import { visitArray } from "metaes/evaluate";
+import { visitArray, defaultScheduler } from "metaes/evaluate";
 import { createScript } from "metaes/metaes";
 import { MemberExpression } from "metaes/nodeTypes";
 import { ASTNode, Continuation, Environment, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
@@ -61,8 +61,12 @@ export function evalCollectObserve(
           }
         },
         didSet(o, p, _v) {
-          if (object === o && p === property) {
-            evaluate();
+          if (object === o) {
+            if (p === property) {
+              evaluate();
+            } else if (Array.isArray(o) && Number(p) === property) {
+              evaluate();
+            }
           }
         }
       }
@@ -224,7 +228,7 @@ export function bindDOM(
   } else {
     c();
   }
-  // Useful in case provided dom variable was string, now it's a DOM element
+  // Useful in case provided DOM variable was string, now it's a DOM element
   return dom;
 }
 
@@ -358,7 +362,7 @@ export function bindEventHandlers(element, environment, config: VanillinEvaluati
           undefined,
           error => console.error({ env, source, eventName, event, element, error }),
           env,
-          { ...config, script }
+          { ...config, script, schedule: defaultScheduler }
         );
       } catch (e) {
         console.error({ e, element, source });

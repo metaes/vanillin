@@ -224,7 +224,7 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
           config
         );
         // continue evaluation right away
-        c();
+        c(element);
       } else {
         // @async is not present. Stop everything and wait for receiver to resume.
         receiver(element, c, cerr);
