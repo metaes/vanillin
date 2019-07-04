@@ -1,4 +1,4 @@
-export function getTrampoliningScheduler(maxWorkTime = 16, resume = setTimeout) {
+export function getTrampoliningScheduler(deadline = 16, resume = setTimeout) {
   const trampoline: any[] = [];
   let startTime;
   let trampolinePopping = false;
@@ -16,7 +16,7 @@ export function getTrampoliningScheduler(maxWorkTime = 16, resume = setTimeout) 
     trampolinePopping = false;
   }
   return function trampolinePush(fn) {
-    if (startTime && Date.now() - startTime > maxWorkTime) {
+    if (startTime && Date.now() - startTime > deadline) {
       trampolinePopping = false;
       startTime = null;
       resume(function() {

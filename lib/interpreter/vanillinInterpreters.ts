@@ -137,6 +137,10 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
   // previousElSibling should be resolved immediately before inserting element to DOM
   const previousElSibling = element.previousElementSibling;
   const parent = element.parentNode as HTMLElement;
+  if (!parent) {
+    cerr(new Error("Can't use @if attribute on orphaned element. Add it to a parent element first."));
+    return;
+  }
   const template = element.cloneNode(true);
   template.removeAttribute("if");
   parent.removeChild(element);
@@ -225,7 +229,7 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
           config
         );
         // continue evaluation right away
-        c();
+        c(element);
       } else {
         // @async is not present. Stop everything and wait for receiver to resume.
         receiver(element, c, cerr);
