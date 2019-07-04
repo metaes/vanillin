@@ -35,7 +35,13 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
         console.error({ element, source, environment, ...e });
         cerr(e);
       },
-      environment,
+      {
+        values: { currentScript: element },
+        prev: environment,
+        // setting internal to true means it's write protected,
+        // so new variables will be created in previous environment
+        internal: true
+      },
       { ...config, schedule: defaultScheduler }
     );
   }
