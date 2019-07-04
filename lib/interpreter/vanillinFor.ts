@@ -67,6 +67,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
     }
   });
 
+  // TODO: simplify
   type Operation = { item: any; index?: number; operation: string; touchedBody?: boolean };
 
   // Indicates if interpretation exited loop header for the first time and started to evaluate loop body.
@@ -102,7 +103,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
       console.error({
         source: headerSource,
         loopSource: forLoopSource,
-        env: loopEnv,
+        env: loopPrivateEnv,
         element,
         error
       });
@@ -167,7 +168,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         while (itemsContainer.firstChild) {
           itemsContainer.removeChild(itemsContainer.firstChild);
         }
-        context.evaluate(script, console.log, cerr, loopEnv, {
+        context.evaluate(script, console.log, cerr, loopPrivateEnv, {
           schedule: getTrampoliningScheduler(),
           ...config,
           script
@@ -229,7 +230,9 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
     });
   }
 
-  const loopEnv = {
+  // Environment used by loop host code, those should not be visible to user space code.
+  const loopPrivateEnv: Environment = {
+    internal: true,
     prev: environment,
     values: {
       applyBind,
@@ -270,7 +273,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         console.error(e);
         cerr(e);
       },
-      loopEnv,
+      loopPrivateEnv,
       { ...config, script, schedule: defaultScheduler }
     );
   }

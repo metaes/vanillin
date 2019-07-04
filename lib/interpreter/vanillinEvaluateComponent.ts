@@ -278,7 +278,22 @@ export function VanillinEvaluateComponent(
    * plus `closure` attribute evaluated value which extracts values from JavaScript part.
    * It mutates children environment in a controlled way.
    */
-  const bindChildrenElements = (_, c, cerr) => bindDOM(slottedElements, c, cerr, state.childrenEnv, config);
+  function bindChildrenElements(_, c, cerr) {
+    function run() {
+      bindDOM(slottedElements, c, cerr, state.childrenEnv, config);
+    }
+    if (usesTemplate && slotSelector) {
+      const slot = slotSelector ? element.querySelector(slotSelector) : element;
+      if (slot) {
+        slottedElements.forEach(child => slot.appendChild(child));
+        run();
+      } else {
+        cerr(new Error("Can't find slot for children."));
+      }
+    } else {
+      run();
+    }
+  }
 
   /**
    * body is just a JavaScript vanilla function, run it.
@@ -287,14 +302,6 @@ export function VanillinEvaluateComponent(
    * Don't await, it should be always synchronous code.
    */
   function onbindCall() {
-    if (usesTemplate && slotSelector) {
-      const slot = slotSelector ? element.querySelector(slotSelector) : element;
-      if (slot) {
-        slottedElements.forEach(child => slot.appendChild(child));
-      } else {
-        throw new Error("Can't find slot for children.");
-      }
-    }
     if (state.onbind) {
       state.onbind();
     }
