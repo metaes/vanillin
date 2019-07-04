@@ -167,11 +167,12 @@ export function VanillinEvaluateComponent(
 
     visitArray(
       Object.keys(declaredParams),
-      (key, c, cerr) =>
+      (key, c, _cerr) =>
         evalMaybeExpression(
           providedArguments[key] || declaredParams[key],
           value => c({ name: key, value }),
-          cerr,
+          // if default value is not provided - couldn't have been parsed - use undefined
+          _error => c({ name: key }),
           closureEnvironment,
           config
         ),
@@ -329,7 +330,7 @@ export function VanillinEvaluateComponent(
     _await(bindChildrenElements);
     onbindCall();
   }
-  const runnerMetaesFunction: MetaesFunction = {
+  const runner_MetaesFunction: MetaesFunction = {
     e: ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
       .expression as FunctionNode,
     closure: closureEnvironment,
@@ -349,7 +350,7 @@ export function VanillinEvaluateComponent(
   ];
   let finished = false;
   evaluateMetaFunction(
-    runnerMetaesFunction,
+    runner_MetaesFunction,
     value => {
       if (!finished) {
         c(value);
