@@ -136,6 +136,10 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
   const source = element.getAttribute("if");
   const previousElSibling = element.previousElementSibling;
   const parent = element.parentNode as HTMLElement;
+  if (!parent) {
+    cerr(new Error("Can't use @if attribute on orphaned element. Add it to a parent element first."));
+    return;
+  }
   const template = element.cloneNode(true);
   template.removeAttribute("if");
   parent.removeChild(element);
