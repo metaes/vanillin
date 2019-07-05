@@ -73,8 +73,7 @@ export function VanillinScriptAttribute({ element }, c, cerr, environment, confi
 export function VanillinElementTextContent({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   let done = false;
   try {
-    const value = element.getAttribute("bind");
-    if (!value && element.textContent) {
+    if (element.textContent) {
       const source = element.textContent;
       const script = createScript(source, config.context.cache);
       const onError = (cerr, e) => {
