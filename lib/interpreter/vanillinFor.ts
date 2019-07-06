@@ -12,11 +12,12 @@ import {
   VanillinEvaluationConfig
 } from "../vanillin-0";
 
-const StopIterationSymbol = (typeof Symbol === "function" ? Symbol : __symbol__ => ({ __symbol__ }))("StopIteration");
+const StopIterationType = "StopIteration";
+
 const stopIteration = lifted(function([resumer], c, cerr) {
-  // `resumer` is a user level function which will resume iteration using `c` continuation.
-  resumer(c);
-  cerr({ value: StopIterationSymbol });
+  // `resumer` is a user level function which can resume iteration using `c` or `cerr` continuation.
+  resumer(c, cerr);
+  cerr({ type: StopIterationType });
 });
 
 const isNode = (node: ASTNode, key: string) => {
@@ -291,7 +292,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         }
       },
       e => {
-        if (e.value === StopIterationSymbol) {
+        if (e.type === StopIterationType) {
           finish();
         } else {
           console.error({ forLoopSource, environment, element });
