@@ -13,7 +13,9 @@ import {
 } from "../vanillin-0";
 
 const StopIterationSymbol = (typeof Symbol === "function" ? Symbol : __symbol__ => ({ __symbol__ }))("StopIteration");
-const stopIteration = lifted(function(_, _c, cerr) {
+const stopIteration = lifted(function([resumer], c, cerr) {
+  // `resumer` is a user level function which will resume iteration using `c` continuation.
+  resumer(c);
   cerr({ value: StopIterationSymbol });
 });
 
