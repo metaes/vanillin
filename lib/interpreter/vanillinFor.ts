@@ -1,4 +1,4 @@
-import { callcc } from "metaes/callcc";
+import { callcc, lifted } from "metaes/callcc";
 import { defaultScheduler } from "metaes/evaluate";
 import { createScript } from "metaes/metaes";
 import { ASTNode, Continuation, Environment, Evaluation } from "metaes/types";
@@ -11,6 +11,14 @@ import {
   VanillinEvaluateElement,
   VanillinEvaluationConfig
 } from "../vanillin-0";
+
+const StopIterationType = "StopIteration";
+
+const stopIteration = lifted(function([resumer], c, cerr) {
+  // `resumer` is a user level function which can resume iteration using `c` or `cerr` continuation.
+  resumer(c, cerr);
+  cerr({ type: StopIterationType });
+});
 
 const isNode = (node: ASTNode, key: string) => {
   const value = node[key];
@@ -144,7 +152,13 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
       // Rebuild this environment, skip values added for state control -
       // call/cc and environment getting should be not available for recurrent DOM binding.
       // They are under `bodyEnvironment.prev` environment.
-      { values: env.values, prev: environment },
+      {
+        values: {
+          ...env.values,
+          stopIteration
+        },
+        prev: environment
+      },
       config
     );
   };
@@ -245,7 +259,15 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
     }
   };
 
-  let finishedAtLeastOnce = false;
+  let finished = false;
+  function finish() {
+    if (!finished) {
+      //parent.appendChild(itemsContainer);
+      itemsContainer = parent;
+      c();
+      finished = true;
+    }
+  }
 
   function evaluateQueue() {
     currentOperation = boundArrayOperationsQueue.shift();
@@ -265,17 +287,18 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         }
         if (boundArrayOperationsQueue.length) {
           evaluateQueue();
-        } else if (!finishedAtLeastOnce) {
-          //parent.appendChild(itemsContainer);
-          itemsContainer = parent;
-          c();
-          finishedAtLeastOnce = true;
+        } else {
+          finish();
         }
       },
       e => {
-        console.error({ forLoopSource, environment, element });
-        console.error(e);
-        cerr(e);
+        if (e.type === StopIterationType) {
+          finish();
+        } else {
+          console.error({ forLoopSource, environment, element });
+          console.error(e);
+          cerr(e);
+        }
       },
       loopPrivateEnv,
       { ...config, script, schedule: defaultScheduler }
