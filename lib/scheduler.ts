@@ -1,4 +1,6 @@
-export function getTrampoliningScheduler(deadline = 16, resume = setTimeout) {
+type Resume = (fn: Function) => void;
+
+export function getTrampoliningScheduler(deadline = 16, resume: Resume = setTimeout) {
   const trampoline: any[] = [];
   let startTime;
   let trampolinePopping = false;
