@@ -3,3 +3,4 @@ lib/**/*.js
 lib/**/*.map
 .DS_Store
 build
+.idea
