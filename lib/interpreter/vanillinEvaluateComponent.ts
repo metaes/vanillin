@@ -76,7 +76,7 @@ function evalMaybeExpression(source: string, c, cerr, closure: Environment, conf
   }
 }
 
-let runnerAST;
+let runnerAST: FunctionNode;
 
 export function VanillinEvaluateComponent(
   { element },
