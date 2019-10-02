@@ -1,4 +1,4 @@
-import { callcc } from "metaes/callcc";
+import { liftedAll } from "metaes/callcc";
 import { GetValueSync } from "metaes/environment";
 import { visitArray } from "metaes/evaluate";
 import { createScript, parseFunction } from "metaes/metaes";
@@ -6,7 +6,6 @@ import { evaluateMetaFunction } from "metaes/metafunction";
 import { ExpressionStatement, FunctionNode, Program } from "metaes/nodeTypes";
 import { ParseError } from "metaes/parse";
 import { Continuation, Environment, ErrorContinuation, MetaesFunction } from "metaes/types";
-import { ObservableContext } from "../observable";
 import { getTrampoliningScheduler } from "../scheduler";
 import { bindDOM, bindEventHandlers, getTemplate, VanillinEvaluationConfig } from "../vanillin-0";
 import { newEnvironmentFrom } from "../vanillinEnvironment";
@@ -77,6 +76,8 @@ function evalMaybeExpression(source: string, c, cerr, closure: Environment, conf
   }
 }
 
+let runnerAST;
+
 export function VanillinEvaluateComponent(
   { element },
   c: Continuation,
@@ -85,7 +86,7 @@ export function VanillinEvaluateComponent(
   config: VanillinEvaluationConfig
 ) {
   // TODO: create new registry for new component
-  const { interpreters, context } = config;
+  const { interpreters } = config;
 
   const byAttribute = element.hasAttribute(COMPONENT_ATTRIBUTE_NAME);
   const componentName = byAttribute ? element.getAttribute(COMPONENT_ATTRIBUTE_NAME)! : element.nodeName.toLowerCase();
@@ -138,7 +139,7 @@ export function VanillinEvaluateComponent(
     onbind?: () => void;
   } = { childrenEnv: closureEnvironment };
 
-  function handleTemplate(template: undefined | typeof state.bodyDOM) {
+  function templateToState(template: undefined | typeof state.bodyDOM) {
     if (template) {
       let templateAttrs;
       if (template instanceof HTMLElement && template.nodeName.toLowerCase() === "function") {
@@ -157,7 +158,7 @@ export function VanillinEvaluateComponent(
     return {};
   }
 
-  function evalParamsAndArgs(templateAttributes: NamedNodeMap | null, c, cerr) {
+  function evalParamsAndArgs([templateAttributes]: [NamedNodeMap | null], c, cerr) {
     const declaredParams = Array.from(templateAttributes || [])
       .filter(attr => attr.name !== "name")
       .reduce(toObject, {});
@@ -192,7 +193,7 @@ export function VanillinEvaluateComponent(
     );
   }
 
-  function onArguments({ argumentsAttrObject, namedArguments }, c, cerr) {
+  function getInlineEnvironment([{ argumentsAttrObject, namedArguments }], c, cerr) {
     state.bodyEnv = newEnvironmentFrom(
       {
         arguments: { ...argumentsAttrObject, ...namedArguments },
@@ -209,15 +210,15 @@ export function VanillinEvaluateComponent(
     let inlineEnv;
 
     if (constructor) {
-      if (!(context instanceof ObservableContext)) {
-        throw new Error("Handle case when context is not observable");
-      }
       const ctorArguments: ComponentConstructorArgs = [
         element,
         slottedElements,
         state.bodyEnv,
         // New registry environment for each component instance. It's like a function call.
-        { ...config, ...{ interpreters: { values: {}, prev: config.interpreters } } }
+        {
+          ...config,
+          ...{ interpreters: { values: {}, prev: config.interpreters } }
+        }
       ];
       const constructorResult = constructor(...ctorArguments);
 
@@ -228,7 +229,10 @@ export function VanillinEvaluateComponent(
           inlineEnv = constructorResult.environment;
         }
         if (inlineEnv) {
-          state.bodyEnv = newEnvironmentFrom(argumentsAttrObject, { values: inlineEnv, prev: state.bodyEnv });
+          state.bodyEnv = newEnvironmentFrom(argumentsAttrObject, {
+            values: inlineEnv,
+            prev: state.bodyEnv
+          });
         }
         c(inlineEnv);
       }
@@ -246,33 +250,41 @@ export function VanillinEvaluateComponent(
     }
   }
 
-  const getChildrenEnv = (inlineEnv: Environment, c, cerr) =>
-    element.hasAttribute("closure")
-      ? evalMaybeExpression(
-          element.getAttribute("closure"),
-          closureAttributeValue => {
-            if (closureAttributeValue) {
-              // closure of component body and component arguments are not included here,
-              // only closure with values evaluated from `closure` attribute.
-              state.childrenEnv = { values: closureAttributeValue, prev: closureEnvironment };
-            }
-            c();
-          },
-          cerr,
-          {
-            values: inlineEnv,
-            prev: closureEnvironment
-          },
-          config
-        )
-      : c();
+  function inlineEnvironmentToState([inlineEnv]: [Environment], c, cerr) {
+    if (element.hasAttribute("closure")) {
+      evalMaybeExpression(
+        element.getAttribute("closure"),
+        closureAttributeValue => {
+          if (closureAttributeValue) {
+            // closure of component body and component arguments are not included here,
+            // only closure with values evaluated from `closure` attribute.
+            state.childrenEnv = {
+              values: closureAttributeValue,
+              prev: closureEnvironment
+            };
+          }
+          c();
+        },
+        cerr,
+        {
+          values: inlineEnv,
+          prev: closureEnvironment
+        },
+        config
+      );
+    } else {
+      c();
+    }
+  }
 
   /**
    * Loaded template has access only to component arguments and body values.
    * It represents concept of static reference biding.
    * It shouldn't see runtime surrounding values (a.k.a. dynamic binding).
    */
-  const bindBodyDOM = (bodyDOM, c, cerr) => bindDOM(bodyDOM, c, cerr, state.bodyEnv, config);
+  function bindBodyDOM([bodyDOM], c, cerr) {
+    return bindDOM(bodyDOM, c, cerr, state.bodyEnv, config);
+  }
 
   /**
    * Run component passed in children DOM arguments only with surrounding component closure
@@ -302,7 +314,7 @@ export function VanillinEvaluateComponent(
    * can attach children to template which will destroy execution order.
    * Don't await, it should be always synchronous code.
    */
-  function onbindCall() {
+  function callOnBind() {
     if (state.onbind) {
       state.onbind();
     }
@@ -310,44 +322,31 @@ export function VanillinEvaluateComponent(
   }
 
   function runner(
-    _await,
-    handleTemplate,
-    evalParamsAndArgs,
-    onArguments,
-    getChildrenEnv,
-    bindBodyDOM,
-    bindChildrenElements,
-    onbindCall,
+    templateToState,
+    callOnBind,
     options,
-    getTemplate
+    evalParamsAndArgs,
+    getInlineEnvironment,
+    getTemplate,
+    inlineEnvironmentToState,
+    bindBodyDOM,
+    bindChildrenElements
   ) {
-    const template = _await(getTemplate, options);
-    const { templateAttrs, bodyDOM } = handleTemplate(template);
-    const args = _await(evalParamsAndArgs, templateAttrs);
-    const inlineEnv = _await(onArguments, args);
-    _await(getChildrenEnv, inlineEnv);
-    _await(bindBodyDOM, bodyDOM);
-    _await(bindChildrenElements);
-    onbindCall();
+    const { templateAttrs, bodyDOM } = templateToState(getTemplate(options));
+    inlineEnvironmentToState(getInlineEnvironment(evalParamsAndArgs(templateAttrs)));
+    bindBodyDOM(bodyDOM);
+    bindChildrenElements();
+    callOnBind();
   }
   const runner_MetaesFunction: MetaesFunction = {
-    e: ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
-      .expression as FunctionNode,
+    e:
+      runnerAST ||
+      (runnerAST = ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
+        .expression as FunctionNode),
     closure: closureEnvironment,
     config: { schedule: getTrampoliningScheduler(), ...config }
   };
-  const args = [
-    callcc,
-    handleTemplate,
-    evalParamsAndArgs,
-    onArguments,
-    getChildrenEnv,
-    bindBodyDOM,
-    bindChildrenElements,
-    onbindCall,
-    definition.options,
-    getTemplate
-  ];
+
   let finished = false;
   evaluateMetaFunction(
     runner_MetaesFunction,
@@ -359,7 +358,18 @@ export function VanillinEvaluateComponent(
     },
     cerr,
     undefined,
-    args
+    [templateToState, callOnBind, definition.options].concat(
+      Object.values(
+        liftedAll({
+          evalParamsAndArgs,
+          getInlineEnvironment,
+          getTemplate,
+          inlineEnvironmentToState,
+          bindBodyDOM,
+          bindChildrenElements
+        })
+      )
+    )
   );
 
   if (element.hasAttribute("async")) {

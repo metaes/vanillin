@@ -1,5 +1,6 @@
 import { MetaesContext } from "metaes/metaes";
 import { describe, it } from "mocha";
+import { bindDOM } from "../vanillin-0";
 
 describe("VanillinForStatement", () => {
   it("should", async () => {

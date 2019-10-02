@@ -166,7 +166,7 @@ export function stringToDOM(source: string) {
   }
 }
 
-export function getTemplate({ templateUrl, templateElement, templateString }: ComponentOptions, c, cerr) {
+export function getTemplate([{ templateUrl, templateElement, templateString }]: [ComponentOptions], c, cerr) {
   if (templateUrl) {
     createDOMElementFromURL(templateUrl, c, cerr);
   } else if (templateElement) {
