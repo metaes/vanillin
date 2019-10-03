@@ -143,11 +143,12 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
+  DOMParser?: typeof DOMParser;
   [key: string]: any; // allow extensions
 }
 
-export function stringToDOM(source: string) {
-  const document = new DOMParser().parseFromString(source, "text/html");
+export function stringToDOM(source: string, DOMParserConstructor: typeof DOMParser = DOMParser) {
+  const document = new DOMParserConstructor().parseFromString(source, "text/html");
 
   // Also look for head contents.
   // This is how DOMParser works, it pushes <script>s to head.
@@ -206,7 +207,8 @@ export function bindDOM(
 ) {
   if (dom) {
     if (typeof dom === "string") {
-      dom = stringToDOM(dom) as NodeList | HTMLElement;
+      const { DOMParser } = config;
+      dom = stringToDOM(dom, DOMParser) as NodeList | HTMLElement;
     }
     config.vanillin = { ...GetVanillinLib(), ...config.vanillin };
     config.interpreters = toEnvironment(config.interpreters || VanillinInterpreters);
