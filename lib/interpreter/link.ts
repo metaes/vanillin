@@ -6,15 +6,10 @@ export function Link({ element }, c, cerr, env, config: VanillinEvaluationConfig
     createDOMElementFromURL(
       href,
       function(inclusion) {
-        if (Array.isArray(inclusion)) {
-          // TODO: shouldn't that be a document fragment?
-          const container = config.document.createElement("div"); 
-          element.insertAdjacentElement("afterend", container);
-          inclusion.forEach(node => container.appendChild(node));
-        } else {
-          element.insertAdjacentElement("afterend", inclusion);
-        }
-        vanillinEval(inclusion, c, cerr, env, config);
+        const container = config.document.createElement("div");
+        container.appendChild(inclusion);
+        element.insertAdjacentElement("afterend", container);
+        vanillinEval(container, c, cerr, env, config);
       },
       cerr,
       env,

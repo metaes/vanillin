@@ -148,24 +148,12 @@ export interface VanillinEvaluationConfig extends EvaluationConfig {
   [key: string]: any; // allow extensions
 }
 
-export function stringToDOM(source: string, DOMParserConstructor: typeof DOMParser = DOMParser) {
+export function stringToDOM(source: string, DOMParserConstructor: typeof DOMParser = DOMParser): DocumentFragment {
   const document = new DOMParserConstructor().parseFromString(source, "text/html");
-
-  // Also look for head contents.
-  // This is how DOMParser works, it pushes <script>s to head.
-  const head = document.head.childNodes;
-  const body = document.body.childNodes;
-  const nodes: any[] = [];
-  // @ts-ignore
-  nodes.push(...head);
-  // @ts-ignore
-  nodes.push(...body);
-
-  if (nodes.length === 1) {
-    return nodes[0];
-  } else {
-    return nodes;
-  }
+  const fragment = document.createDocumentFragment();
+  document.head.childNodes.forEach(child => fragment.appendChild(child));
+  document.body.childNodes.forEach(child => fragment.appendChild(child));
+  return fragment;
 }
 
 export function getTemplate(
@@ -195,7 +183,7 @@ const templatesCache = new Map<string, any>();
 
 export function createDOMElementFromURL(
   templateURL: string,
-  c: Continuation,
+  c: Continuation<DocumentFragment>,
   cerr: ErrorContinuation,
   _env,
   config: VanillinEvaluationConfig
@@ -221,7 +209,7 @@ export function createDOMElementFromURL(
 }
 
 export function bindDOM(
-  dom: HTMLElement | HTMLElement[] | NodeList | string | undefined,
+  dom: HTMLElement | HTMLElement[] | NodeList | DocumentFragment | string | undefined,
   c: Continuation,
   cerr: ErrorContinuation,
   env: Environment | object = {},
@@ -230,7 +218,7 @@ export function bindDOM(
   if (dom) {
     if (typeof dom === "string") {
       const { DOMParser } = config;
-      dom = stringToDOM(dom, DOMParser) as NodeList | HTMLElement;
+      dom = stringToDOM(dom, DOMParser);
     }
     config.vanillin = { ...GetVanillinLib(), ...config.vanillin };
     config.interpreters = toEnvironment(config.interpreters || VanillinInterpreters);
@@ -261,13 +249,15 @@ export function bindDOM(
 }
 
 export function vanillinEval(
-  dom: HTMLElement | HTMLElement[] | NodeList,
+  dom: HTMLElement | HTMLElement[] | NodeList | HTMLCollection | DocumentFragment,
   c: Continuation,
   cerr: ErrorContinuation,
   env: Environment,
   config: Partial<VanillinEvaluationConfig> = {}
 ) {
-  if (dom instanceof NodeList || Array.isArray(dom) || dom instanceof HTMLCollection) {
+  if (dom instanceof DocumentFragment) {
+    vanillinEval(dom.children, c, cerr, env, config);
+  } else if (Array.isArray(dom) || dom instanceof NodeList || dom instanceof HTMLCollection) {
     visitArray(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
         child => child.nodeType === Node.ELEMENT_NODE

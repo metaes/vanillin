@@ -142,7 +142,13 @@ export function VanillinEvaluateComponent(
   function templateToState(template: undefined | typeof state.bodyDOM) {
     if (template) {
       let templateAttrs;
-      if (template instanceof HTMLElement && template.nodeName.toLowerCase() === "function") {
+      if (template instanceof DocumentFragment) {
+        if (template.childNodes.length === 1) {
+          return templateToState(template.childNodes[0]);
+        } else {
+          return templateToState(template.childNodes);
+        }
+      } else if (template instanceof HTMLElement && template.nodeName.toLowerCase() === "function") {
         templateAttrs = template.attributes;
         template = template.childNodes;
       }
