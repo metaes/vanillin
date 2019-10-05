@@ -144,6 +144,7 @@ export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
   DOMParser?: typeof DOMParser;
+  document?: HTMLDocument;
   [key: string]: any; // allow extensions
 }
 
@@ -167,9 +168,15 @@ export function stringToDOM(source: string, DOMParserConstructor: typeof DOMPars
   }
 }
 
-export function getTemplate([{ templateUrl, templateElement, templateString }]: [ComponentOptions], c, cerr) {
+export function getTemplate(
+  [{ templateUrl, templateElement, templateString }]: [ComponentOptions],
+  c,
+  cerr,
+  env,
+  config
+) {
   if (templateUrl) {
-    createDOMElementFromURL(templateUrl, c, cerr);
+    createDOMElementFromURL(templateUrl, c, cerr, env, config);
   } else if (templateElement) {
     if (templateElement instanceof NodeList) {
       c(Array.from(templateElement).map(node => node.cloneNode(true)));
@@ -186,17 +193,32 @@ export function getTemplate([{ templateUrl, templateElement, templateString }]: 
 // TODO: should rather rely on browser cache
 const templatesCache = new Map<string, any>();
 
-export const createDOMElementFromURL = (templateURL: string, c: Continuation, cerr: ErrorContinuation) =>
+export function createDOMElementFromURL(
+  templateURL: string,
+  c: Continuation,
+  cerr: ErrorContinuation,
+  _env,
+  config: VanillinEvaluationConfig
+) {
+  const { DOMParser } = config;
+
   templatesCache.has(templateURL)
-    ? c(stringToDOM(templatesCache.get(templateURL)))
+    ? c(stringToDOM(templatesCache.get(templateURL), DOMParser))
     : fetch(templateURL)
-        .then(d => d.text())
+        .then(function(response) {
+          if (!response.ok) {
+            throw Error(response.statusText);
+          } else {
+            return response.text();
+          }
+        })
         .then(htmlString => {
           const cleaned = htmlString.trim();
           templatesCache.set(templateURL, cleaned);
-          c(stringToDOM(cleaned));
+          c(stringToDOM(cleaned, DOMParser));
         })
         .catch(cerr);
+}
 
 export function bindDOM(
   dom: HTMLElement | HTMLElement[] | NodeList | string | undefined,
@@ -217,6 +239,9 @@ export function bindDOM(
     }
     if (!config.context) {
       config.context = new ObservableContext(env);
+    }
+    if (!config.document) {
+      config.document = document;
     }
 
     const shouldReplaceOriginalEnviornment = env && "values" in env && "prev" in env;
