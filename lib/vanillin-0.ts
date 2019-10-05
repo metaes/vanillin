@@ -143,16 +143,17 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
-  DOMParser?: typeof DOMParser;
-  document?: HTMLDocument;
+  DOMParser: typeof DOMParser;
+  document: HTMLDocument;
   [key: string]: any; // allow extensions
 }
 
-export function stringToDOM(source: string, DOMParserConstructor: typeof DOMParser = DOMParser): DocumentFragment {
-  const document = new DOMParserConstructor().parseFromString(source, "text/html");
+export function stringToDOM(source: string, config: VanillinEvaluationConfig): DocumentFragment {
+  const { document, DOMParser } = config;
+  const doc = new DOMParser().parseFromString(source, "text/html");
   const fragment = document.createDocumentFragment();
-  document.head.childNodes.forEach(child => fragment.appendChild(child));
-  document.body.childNodes.forEach(child => fragment.appendChild(child));
+  doc.head.childNodes.forEach(child => fragment.appendChild(child));
+  doc.body.childNodes.forEach(child => fragment.appendChild(child));
   return fragment;
 }
 
@@ -161,7 +162,7 @@ export function getTemplate(
   c,
   cerr,
   env,
-  config
+  config: VanillinEvaluationConfig
 ) {
   if (templateUrl) {
     createDOMElementFromURL(templateUrl, c, cerr, env, config);
@@ -172,7 +173,7 @@ export function getTemplate(
       c(templateElement.cloneNode(true));
     }
   } else if (templateString) {
-    c(stringToDOM(templateString));
+    c(stringToDOM(templateString, config));
   } else {
     c(null);
   }
@@ -188,10 +189,8 @@ export function createDOMElementFromURL(
   _env,
   config: VanillinEvaluationConfig
 ) {
-  const { DOMParser } = config;
-
   templatesCache.has(templateURL)
-    ? c(stringToDOM(templatesCache.get(templateURL), DOMParser))
+    ? c(stringToDOM(templatesCache.get(templateURL), config))
     : fetch(templateURL)
         .then(function(response) {
           if (!response.ok) {
@@ -203,7 +202,7 @@ export function createDOMElementFromURL(
         .then(htmlString => {
           const cleaned = htmlString.trim();
           templatesCache.set(templateURL, cleaned);
-          c(stringToDOM(cleaned, DOMParser));
+          c(stringToDOM(cleaned, config));
         })
         .catch(cerr);
 }
@@ -216,9 +215,15 @@ export function bindDOM(
   config: Partial<VanillinEvaluationConfig> = {}
 ) {
   if (dom) {
+    if (!config.document) {
+      config.document = document;
+    }
+    if (!config.DOMParser) {
+      config.DOMParser = DOMParser;
+    }
+
     if (typeof dom === "string") {
-      const { DOMParser } = config;
-      dom = stringToDOM(dom, DOMParser);
+      dom = stringToDOM(dom, config);
     }
     config.vanillin = { ...GetVanillinLib(), ...config.vanillin };
     config.interpreters = toEnvironment(config.interpreters || VanillinInterpreters);
@@ -227,9 +232,6 @@ export function bindDOM(
     }
     if (!config.context) {
       config.context = new ObservableContext(env);
-    }
-    if (!config.document) {
-      config.document = document;
     }
 
     const shouldReplaceOriginalEnviornment = env && "values" in env && "prev" in env;
