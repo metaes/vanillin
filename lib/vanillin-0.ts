@@ -143,13 +143,15 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
-  DOMParser: typeof DOMParser;
-  document: HTMLDocument;
+  window: typeof window;
   [key: string]: any; // allow extensions
 }
 
 export function stringToDOM(source: string, config: VanillinEvaluationConfig): DocumentFragment {
-  const { document, DOMParser } = config;
+  const {
+    window: { document, DOMParser }
+  } = config;
+
   const doc = new DOMParser().parseFromString(source, "text/html");
   const fragment = document.createDocumentFragment();
   doc.head.childNodes.forEach(child => fragment.appendChild(child));
@@ -215,11 +217,9 @@ export function bindDOM(
   config: Partial<VanillinEvaluationConfig> = {}
 ) {
   if (dom) {
-    if (!config.document) {
-      config.document = document;
-    }
-    if (!config.DOMParser) {
-      config.DOMParser = DOMParser;
+    if (!config.window && typeof window === "undefined") {
+      cerr(new Error("'window` object is not provided in config and can't be found in global scope."));
+      return;
     }
 
     if (typeof dom === "string") {
@@ -255,8 +255,12 @@ export function vanillinEval(
   c: Continuation,
   cerr: ErrorContinuation,
   env: Environment,
-  config: Partial<VanillinEvaluationConfig> = {}
+  config: VanillinEvaluationConfig
 ) {
+  const {
+    window: { Node, DocumentFragment }
+  } = config;
+
   if (dom instanceof DocumentFragment) {
     vanillinEval(dom.children, c, cerr, env, config);
   } else if (Array.isArray(dom) || dom instanceof NodeList || dom instanceof HTMLCollection) {
@@ -280,6 +284,10 @@ export function VanillinEvaluateElement(
   environment: Environment,
   config: VanillinEvaluationConfig
 ) {
+  const {
+    window: { HTMLTemplateElement }
+  } = config;
+
   const hasAttrs = !!element.attributes.length;
   const statements: string[] = [];
   const nodeName = element.nodeName.toLowerCase();
