@@ -204,6 +204,10 @@ export function VanillinEvaluateChildren(
   environment: Environment,
   config: VanillinEvaluationConfig
 ) {
+  const {
+    window: { Node }
+  } = config;
+  
   if (element.children.length) {
     vanillinEval(
       Array.from(element.children).filter(child => child.nodeType === Node.ELEMENT_NODE) as HTMLElement[],
