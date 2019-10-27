@@ -192,12 +192,13 @@ export function createDOMElementFromURL(
   config: VanillinEvaluationConfig
 ) {
   const {
-    window: { fetch }
+    window: { fetch, document }
   } = config;
+  const absoluteURI = document.baseURI + "/" + templateURL;
 
-  templatesCache.has(templateURL)
-    ? c(stringToDOM(templatesCache.get(templateURL), config))
-    : fetch(templateURL)
+  templatesCache.has(absoluteURI)
+    ? c(stringToDOM(templatesCache.get(absoluteURI), config))
+    : fetch(absoluteURI)
         .then(function(response) {
           if (!response.ok) {
             throw Error(response.statusText);
@@ -207,7 +208,7 @@ export function createDOMElementFromURL(
         })
         .then(htmlString => {
           const cleaned = htmlString.trim();
-          templatesCache.set(templateURL, cleaned);
+          templatesCache.set(absoluteURI, cleaned);
           c(stringToDOM(cleaned, config));
         })
         .catch(cerr);
@@ -221,9 +222,13 @@ export function bindDOM(
   config: Partial<VanillinEvaluationConfig> = {}
 ) {
   if (dom) {
-    if (!config.window && typeof window === "undefined") {
-      cerr(new Error("'window` object is not provided in config and can't be found in global scope."));
-      return;
+    if (!config.window) {
+      if (typeof window === "undefined") {
+        cerr(new Error("'window` object is not provided in config and can't be found in global scope."));
+        return;
+      } else {
+        config.window = window;
+      }
     }
 
     if (typeof dom === "string") {
