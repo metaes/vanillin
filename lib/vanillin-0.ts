@@ -191,6 +191,10 @@ export function createDOMElementFromURL(
   _env,
   config: VanillinEvaluationConfig
 ) {
+  const {
+    window: { fetch }
+  } = config;
+
   templatesCache.has(templateURL)
     ? c(stringToDOM(templatesCache.get(templateURL), config))
     : fetch(templateURL)

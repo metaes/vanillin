@@ -207,7 +207,7 @@ export function VanillinEvaluateChildren(
   const {
     window: { Node }
   } = config;
-  
+
   if (element.children.length) {
     vanillinEval(
       Array.from(element.children).filter(child => child.nodeType === Node.ELEMENT_NODE) as HTMLElement[],
@@ -241,7 +241,7 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
         c(element);
       } else {
         // @async is not present. Stop everything and wait for receiver to resume.
-        receiver(element, c, cerr);
+        receiver(element, c, cerr, env, config);
       }
     },
     cerr,
