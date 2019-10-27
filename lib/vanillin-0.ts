@@ -267,7 +267,7 @@ export function vanillinEval(
   config: VanillinEvaluationConfig
 ) {
   const {
-    window: { Node, DocumentFragment }
+    window: { Node, DocumentFragment, NodeList, HTMLCollection }
   } = config;
 
   if (dom instanceof DocumentFragment) {
