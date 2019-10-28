@@ -4,7 +4,7 @@ import { createScript } from "metaes/metaes";
 import { MemberExpression } from "metaes/nodeTypes";
 import { ASTNode, Continuation, Environment, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
 import { ComponentOptions, COMPONENT_ATTRIBUTE_NAME } from "./interpreter/vanillinEvaluateComponent";
-import { VanillinInterpreters } from "./interpreter/vanillinInterpreters";
+import { getVanillinInterpreters } from "./interpreter/vanillinInterpreters";
 import { EvaluationListener, ObservableContext } from "./observable";
 import { getTrampoliningScheduler } from "./scheduler";
 import { GetVanillinLib } from "./vanillin-lib";
@@ -235,9 +235,9 @@ export function bindDOM(
       dom = stringToDOM(dom, config);
     }
     config.vanillin = { ...GetVanillinLib(), ...config.vanillin };
-    config.interpreters = toEnvironment(config.interpreters || VanillinInterpreters);
+    config.interpreters = toEnvironment(config.interpreters || getVanillinInterpreters());
     if (!config.interpreters.prev) {
-      config.interpreters.prev = VanillinInterpreters;
+      config.interpreters.prev = getVanillinInterpreters();
     }
     if (!config.context) {
       config.context = new ObservableContext(env);
@@ -277,12 +277,12 @@ export function vanillinEval(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
         child => child.nodeType === Node.ELEMENT_NODE
       ),
-      (element, c, cerr) => VanillinEvaluateElement(element, c, cerr, env, config),
+      (element, c, cerr) => GetValueSync("VanillinEvaluateElement", config.interpreters)(element, c, cerr, env, config),
       c,
       cerr
     );
   } else {
-    VanillinEvaluateElement(dom, c, cerr, env, config);
+    GetValueSync("VanillinEvaluateElement", config.interpreters)(dom, c, cerr, env, config);
   }
 }
 

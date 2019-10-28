@@ -6,6 +6,7 @@ import { evalCollectObserve, vanillinEval, VanillinEvaluateElement, VanillinEval
 import { VanillinEvaluateComponent } from "./vanillinEvaluateComponent";
 import { VanillinFor } from "./vanillinFor";
 import { defaultScheduler } from "metaes/evaluate";
+import { GetValueSync } from "metaes/environment";
 
 export function VanillinScriptElement({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   const source = element.textContent;
@@ -163,7 +164,7 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
           } else {
             parent.prepend(consequentElement);
           }
-          VanillinEvaluateElement(
+          GetValueSync("VanillinEvaluateElement", config.interpreters)(
             consequentElement,
             () => {
               if (!done) {
@@ -232,7 +233,7 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
           element,
           // if element has @async prop then upon returning to evaluation the only thing you care about
           // is rendering this element and its descendants. Don't care about further evaluation, i.e. of adjacent elements.
-          () => VanillinEvaluateElement(element, console.log, console.error, env, config),
+          () => GetValueSync("VanillinEvaluateElement", config.interpreters)(element, console.log, console.error, env, config),
           cerr,
           env,
           config
@@ -250,7 +251,7 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
   );
 }
 
-export const VanillinInterpreters: Environment = {
+export const getVanillinInterpreters = () => ({
   values: {
     VanillinCallcc,
     VanillinIf,
@@ -260,7 +261,8 @@ export const VanillinInterpreters: Environment = {
     VanillinScriptElement,
     VanillinScriptAttribute,
     VanillinElementTextContent,
-    VanillinElementAttributes
+    VanillinElementAttributes,
+    VanillinEvaluateElement
   },
   prev: ECMAScriptInterpreters
-};
+});

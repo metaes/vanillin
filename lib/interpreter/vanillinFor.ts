@@ -4,13 +4,8 @@ import { createScript } from "metaes/metaes";
 import { ASTNode, Continuation, Environment, Evaluation } from "metaes/types";
 import { EvaluationListener } from "../observable";
 import { getTrampoliningScheduler } from "../scheduler";
-import {
-  ArrayUpdatingMethods,
-  collectObservableVars,
-  ObservableResult,
-  VanillinEvaluateElement,
-  VanillinEvaluationConfig
-} from "../vanillin-0";
+import { ArrayUpdatingMethods, collectObservableVars, ObservableResult, VanillinEvaluationConfig } from "../vanillin-0";
+import { GetValueSync } from "metaes/environment";
 
 const StopIterationType = "StopIteration";
 
@@ -145,7 +140,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
     }
     lastItemAnchor = nextElement;
 
-    VanillinEvaluateElement(
+    GetValueSync("VanillinEvaluateElement", config.interpreters)(
       nextElement,
       c,
       cerr,
