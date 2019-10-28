@@ -10,10 +10,10 @@ export function Link({ element }, c, cerr, env, config: VanillinEvaluationConfig
     createDOMElementFromURL(
       href,
       function(inclusion) {
-        const wrapper = document.createElement("div");
-        wrapper.appendChild(inclusion);
-        element.appendChild(wrapper);
-        vanillinEval(wrapper, c, cerr, env, config);
+        const container = document.createElement("div");
+        container.appendChild(inclusion);
+        element.insertAdjacentElement("afterend", container);
+        vanillinEval(container, c, cerr, env, config);
       },
       cerr,
       env,
