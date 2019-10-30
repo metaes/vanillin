@@ -273,11 +273,13 @@ export function vanillinEval(
   if (dom instanceof DocumentFragment) {
     vanillinEval(dom.children, c, cerr, env, config);
   } else if (Array.isArray(dom) || dom instanceof NodeList || dom instanceof HTMLCollection) {
+    const VanillinEvaluateElement = GetValueSync("VanillinEvaluateElement", config.interpreters);
+    
     visitArray(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
         child => child.nodeType === Node.ELEMENT_NODE
       ),
-      (element, c, cerr) => GetValueSync("VanillinEvaluateElement", config.interpreters)(element, c, cerr, env, config),
+      (element, c, cerr) => VanillinEvaluateElement(element, c, cerr, env, config),
       c,
       cerr
     );
