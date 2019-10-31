@@ -7,7 +7,9 @@ export function Link({ element }: { element: HTMLElement }, c, cerr, env, config
       href,
       function(inclusion) {
         const inclusionChildren = Array.from(inclusion.childNodes);
-        element.parentNode!.insertBefore(inclusion, element);
+        const parent = element.parentNode;
+        parent!.insertBefore(inclusion, element);
+        parent.removeChild(element);
         vanillinEval(inclusionChildren, c, cerr, env, config);
       },
       cerr,
