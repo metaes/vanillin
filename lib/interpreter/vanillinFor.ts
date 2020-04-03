@@ -296,7 +296,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
         }
       },
       loopPrivateEnv,
-      { ...config, script, schedule: defaultScheduler }
+      { ...config, script }
     );
   }
 

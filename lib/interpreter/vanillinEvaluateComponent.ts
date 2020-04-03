@@ -350,7 +350,7 @@ export function VanillinEvaluateComponent(
       (runnerAST = ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
         .expression as FunctionNode),
     closure: closureEnvironment,
-    config: { schedule: getTrampoliningScheduler(), ...config }
+    config: { ...config, schedule: getTrampoliningScheduler() }
   };
 
   let finished = false;

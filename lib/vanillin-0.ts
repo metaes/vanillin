@@ -379,6 +379,7 @@ export function bindEventHandlers(element, environment, config: VanillinEvaluati
     if (attr.name.substring(0, 2) !== "on") {
       continue;
     }
+
     const eventName = attr.name.substring(2); // remove 'on'
     const source = attr.value;
 

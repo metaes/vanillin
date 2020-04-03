@@ -11,6 +11,12 @@ import { GetValueSync } from "metaes/environment";
 export function VanillinScriptElement({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   const source = element.textContent;
   const script = createScript(source, config.context.cache);
+  const scriptConfig = {
+    ...config,
+    // setting default scheduler on script, because we don't want to interrupt potentialy synchronous code
+    schedule: defaultScheduler
+  };
+  
   if (element.hasAttribute("observe")) {
     let done = false;
     evalCollectObserve(
@@ -26,7 +32,7 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
         cerr(e);
       },
       environment,
-      config
+      scriptConfig
     );
   } else {
     config.context.evaluate(
@@ -43,7 +49,7 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
         // so new variables will be created in previous environment
         internal: true
       },
-      { ...config, schedule: defaultScheduler }
+      scriptConfig
     );
   }
 }
@@ -233,7 +239,14 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
           element,
           // if element has @async prop then upon returning to evaluation the only thing you care about
           // is rendering this element and its descendants. Don't care about further evaluation, i.e. of adjacent elements.
-          () => GetValueSync("VanillinEvaluateElement", config.interpreters)(element, console.log, console.error, env, config),
+          () =>
+            GetValueSync("VanillinEvaluateElement", config.interpreters)(
+              element,
+              console.log,
+              console.error,
+              env,
+              config
+            ),
           cerr,
           env,
           config
