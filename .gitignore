@@ -1,6 +1,8 @@
 node_modules
 lib/**/*.js
 lib/**/*.map
+test/**/*.js
+test/**/*.map
 .DS_Store
 build
 .idea

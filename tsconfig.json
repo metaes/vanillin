@@ -22,12 +22,5 @@
         "node_modules/metaes/lib/*"
       ]
     }
-  },
-  "include": [
-    "lib/**/*.ts"
-  ],
-  "exclude": [
-    "lib/**/*.spec.ts",
-    "test"
-  ]
+  }
 }

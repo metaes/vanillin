@@ -1,3 +1,5 @@
+require("../patch").patch();
+
 import { MetaesContext } from "metaes/metaes";
 import { describe, it } from "mocha";
 import { bindDOM } from "../vanillin-0";

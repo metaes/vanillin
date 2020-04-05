@@ -1,5 +1,5 @@
 import { getEnvironmentForValue, GetValueSync, toEnvironment } from "metaes/environment";
-import { visitArray, defaultScheduler } from "metaes/evaluate";
+import { defaultScheduler, visitArray } from "metaes/evaluate";
 import { createScript } from "metaes/metaes";
 import { MemberExpression } from "metaes/nodeTypes";
 import { ASTNode, Continuation, Environment, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
@@ -18,15 +18,15 @@ export function evalCollect(
   config: VanillinEvaluationConfig
 ) {
   const context = config.context;
-  const collector = collectObservableVars(result => results.push(result), script, environment);
+  const collector = collectObservableVars((result) => results.push(result), script, environment);
   context.addListener(collector);
   context.evaluate(
     script,
-    value => {
+    (value) => {
       context.removeListener(collector);
       c(value);
     },
-    e => {
+    (e) => {
       context.removeListener(collector);
       console.error({ e, environment, source: script.source });
       cerr(e);
@@ -37,7 +37,7 @@ export function evalCollect(
 }
 
 export const ArrayUpdatingMethods = ["splice", "pop", "push", "shift", "unshift"].map(
-  methodName => Array.prototype[methodName]
+  (methodName) => Array.prototype[methodName]
 );
 
 export function evalCollectObserve(
@@ -76,15 +76,15 @@ export function evalCollectObserve(
   const results: ObservableResult[] = [];
   evalCollect(
     { results, script },
-    value => {
+    (value) => {
       c(value);
       const added: ObservableResult[] = [];
-      results.forEach(result => {
+      results.forEach((result) => {
         const { object, property } = result;
 
         // If object/property pair was already added, skip adding another handler.
         // This may happen then observable reference occurs in code more than once.
-        if (added.find(found => found.object === object && found.property === property)) {
+        if (added.find((found) => found.object === object && found.property === property)) {
           return;
         }
         add(result);
@@ -154,8 +154,8 @@ export function stringToDOM(source: string, config: VanillinEvaluationConfig): D
 
   const doc = new DOMParser().parseFromString(source, "text/html");
   const fragment = document.createDocumentFragment();
-  doc.head.childNodes.forEach(child => fragment.appendChild(child));
-  doc.body.childNodes.forEach(child => fragment.appendChild(child));
+  doc.head.childNodes.forEach((child) => fragment.appendChild(child));
+  doc.body.childNodes.forEach((child) => fragment.appendChild(child));
   return fragment;
 }
 
@@ -166,11 +166,13 @@ export function getTemplate(
   env,
   config: VanillinEvaluationConfig
 ) {
+  const { NodeList } = config.window;
+  
   if (templateUrl) {
     createDOMElementFromURL(templateUrl, c, cerr, env, config);
   } else if (templateElement) {
     if (templateElement instanceof NodeList) {
-      c(Array.from(templateElement).map(node => node.cloneNode(true)));
+      c(Array.from(templateElement).map((node) => node.cloneNode(true)));
     } else {
       c(templateElement.cloneNode(true));
     }
@@ -199,14 +201,14 @@ export function createDOMElementFromURL(
   templatesCache.has(absoluteURI)
     ? c(stringToDOM(templatesCache.get(absoluteURI), config))
     : fetch(absoluteURI)
-        .then(function(response) {
+        .then(function (response) {
           if (!response.ok) {
             throw Error(response.statusText);
           } else {
             return response.text();
           }
         })
-        .then(htmlString => {
+        .then((htmlString) => {
           const cleaned = htmlString.trim();
           templatesCache.set(absoluteURI, cleaned);
           c(stringToDOM(cleaned, config));
@@ -274,10 +276,10 @@ export function vanillinEval(
     vanillinEval(dom.children, c, cerr, env, config);
   } else if (Array.isArray(dom) || dom instanceof NodeList || dom instanceof HTMLCollection) {
     const VanillinEvaluateElement = GetValueSync("VanillinEvaluateElement", config.interpreters);
-    
+
     visitArray(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
-        child => child.nodeType === Node.ELEMENT_NODE
+        (child) => child.nodeType === Node.ELEMENT_NODE
       ),
       (element, c, cerr) => VanillinEvaluateElement(element, c, cerr, env, config),
       c,
@@ -344,7 +346,7 @@ export function VanillinEvaluateElement(
     config.context.evaluate(
       {
         type: "BlockStatement",
-        body: statements.map(type => ({ type, element }))
+        body: statements.map((type) => ({ type, element }))
       },
       c,
       cerr,
@@ -387,7 +389,7 @@ export function bindEventHandlers(element, environment, config: VanillinEvaluati
     let script;
 
     // Add metaes based event handler body
-    element.addEventListener(eventName, async event => {
+    element.addEventListener(eventName, async (event) => {
       try {
         if (!script) {
           script = createScript(source, context.cache);
@@ -400,7 +402,7 @@ export function bindEventHandlers(element, environment, config: VanillinEvaluati
           script,
           // ignore success value
           undefined,
-          error => console.error({ env, source, eventName, event, element, error }),
+          (error) => console.error({ env, source, eventName, event, element, error }),
           env,
           { ...config, script, schedule: defaultScheduler }
         );

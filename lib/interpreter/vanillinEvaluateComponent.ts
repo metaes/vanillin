@@ -58,7 +58,7 @@ function evalMaybeExpression(source: string, c, cerr, closure: Environment, conf
 
   // First try to parse script with parens around, it's an optimistic case as it's expected for user to pass expressions.
   // For example it's useful when whole script evaluates to object expression - it won't be treated as labeled statement.
-  evaluate(true, c, e => {
+  evaluate(true, c, (e) => {
     if (e.value instanceof ParseError) {
       withoutParens();
     } else {
@@ -69,7 +69,7 @@ function evalMaybeExpression(source: string, c, cerr, closure: Environment, conf
 
   // If it didn't parse, means user could have provided a statement. Try to parse it without parens.
   function withoutParens() {
-    evaluate(false, c, e => {
+    evaluate(false, c, (e) => {
       console.error({ source, closure, config, e });
       cerr(e);
     });
@@ -86,7 +86,10 @@ export function VanillinEvaluateComponent(
   config: VanillinEvaluationConfig
 ) {
   // TODO: create new registry for new component
-  const { interpreters } = config;
+  const {
+    interpreters,
+    window: { DocumentFragment, HTMLElement, NodeList }
+  } = config;
 
   const byAttribute = element.hasAttribute(COMPONENT_ATTRIBUTE_NAME);
   const componentName = byAttribute ? element.getAttribute(COMPONENT_ATTRIBUTE_NAME)! : element.nodeName.toLowerCase();
@@ -102,6 +105,12 @@ export function VanillinEvaluateComponent(
 
   // Convert children to array to keep DOM elements references alive
   const slottedElements = Array.from(element.children) as HTMLElement[];
+  const slottedElementsByName = slottedElements.reduce(function (all, next) {
+    if (next.hasAttribute("name")) {
+      all[next.getAttribute("name")] = next;
+    }
+    return all;
+  }, {});
 
   let usesTemplate = false;
 
@@ -154,7 +163,7 @@ export function VanillinEvaluateComponent(
       }
       // Immediately add template to component element
       if (template instanceof NodeList || Array.isArray(template)) {
-        Array.from(template).forEach(child => element.appendChild(child));
+        Array.from(template).forEach((child) => element.appendChild(child));
       } else {
         element.appendChild(template);
       }
@@ -166,7 +175,7 @@ export function VanillinEvaluateComponent(
 
   function evalParamsAndArgs([templateAttributes]: [NamedNodeMap | null], c, cerr) {
     const declaredParams = Array.from(templateAttributes || [])
-      .filter(attr => attr.name !== "name")
+      .filter((attr) => attr.name !== "name")
       .reduce(toObject, {});
     const providedArguments = Array.from(element.attributes)
       .filter((attr: Attr) => declaredParams.hasOwnProperty(attr.name))
@@ -177,18 +186,18 @@ export function VanillinEvaluateComponent(
       (key, c, _cerr) =>
         evalMaybeExpression(
           providedArguments[key] || declaredParams[key],
-          value => c({ name: key, value }),
+          (value) => c({ name: key, value }),
           // if default value is not provided - couldn't have been parsed - use undefined
-          _error => c({ name: key }),
+          (_error) => c({ name: key }),
           closureEnvironment,
           config
         ),
-      namedArguments => {
+      (namedArguments) => {
         namedArguments = namedArguments.reduce(toObject, {});
         element.hasAttribute("arguments")
           ? evalMaybeExpression(
               element.getAttribute("arguments"),
-              argumentsAttrObject => c({ argumentsAttrObject, namedArguments }),
+              (argumentsAttrObject) => c({ argumentsAttrObject, namedArguments }),
               cerr,
               closureEnvironment,
               config
@@ -204,7 +213,8 @@ export function VanillinEvaluateComponent(
       {
         arguments: { ...argumentsAttrObject, ...namedArguments },
         ...namedArguments,
-        slottedElements
+        slottedElements,
+        slottedElementsByName
       },
       definition.options.closure || { values: {} }
     );
@@ -244,7 +254,7 @@ export function VanillinEvaluateComponent(
       }
       if (constructorResult) {
         if (constructorResult instanceof Promise) {
-          constructorResult.then(ctor => resultReady(ctor(...ctorArguments))).catch(cerr);
+          constructorResult.then((ctor) => resultReady(ctor(...ctorArguments))).catch(cerr);
         } else {
           resultReady(constructorResult);
         }
@@ -260,7 +270,7 @@ export function VanillinEvaluateComponent(
     if (element.hasAttribute("closure")) {
       evalMaybeExpression(
         element.getAttribute("closure"),
-        closureAttributeValue => {
+        (closureAttributeValue) => {
           if (closureAttributeValue) {
             // closure of component body and component arguments are not included here,
             // only closure with values evaluated from `closure` attribute.
@@ -304,7 +314,7 @@ export function VanillinEvaluateComponent(
     if (usesTemplate && slotSelector) {
       const slot = slotSelector ? element.querySelector(slotSelector) : element;
       if (slot) {
-        slottedElements.forEach(child => slot.appendChild(child));
+        slottedElements.forEach((child) => slot.appendChild(child));
         run();
       } else {
         cerr(new Error("Can't find slot for children."));
@@ -356,7 +366,7 @@ export function VanillinEvaluateComponent(
   let finished = false;
   evaluateMetaFunction(
     runner_MetaesFunction,
-    value => {
+    (value) => {
       if (!finished) {
         c(value);
         finished = true;

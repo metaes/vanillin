@@ -1,0 +1,23 @@
+<describe>
+  Vanillin components
+
+  <test>
+    Supports named arguments
+
+    <function name="f" text>
+      <span bind>text</span>
+    </function>
+    <f text="'test'"></f>
+    <script>
+      chai.assert.equal(testElement.querySelectorAll("span")[1].textContent, "test");
+    </script>
+  </test>
+
+  <test>
+    Should support
+  </test>
+
+  <test>
+    Name
+  </test>
+</describe>
