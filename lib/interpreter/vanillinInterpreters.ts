@@ -16,7 +16,7 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
     // setting default scheduler on script, because we don't want to interrupt potentialy synchronous code
     schedule: defaultScheduler
   };
-  
+
   if (element.hasAttribute("observe")) {
     let done = false;
     evalCollectObserve(
@@ -27,7 +27,7 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
           c();
         }
       },
-      e => {
+      (e) => {
         console.error({ element, e, source: element.textContent, environment });
         cerr(e);
       },
@@ -38,7 +38,7 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
     config.context.evaluate(
       script,
       c,
-      e => {
+      (e) => {
         console.error({ element, source, environment, ...e });
         cerr(e);
       },
@@ -68,7 +68,7 @@ export function VanillinScriptAttribute({ element }, c, cerr, environment, confi
         c();
       }
     },
-    e => {
+    (e) => {
       console.error({ element, e, source: element.textContent, env });
       cerr(e);
     },
@@ -78,6 +78,10 @@ export function VanillinScriptAttribute({ element }, c, cerr, environment, confi
 }
 
 export function VanillinElementTextContent({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
+  const {
+    window: { HTMLElement }
+  } = config;
+
   let done = false;
   try {
     if (element.textContent) {
@@ -93,7 +97,7 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
       if (element.hasAttribute("async")) {
         // TODO: remember to collect and repeat here as well
         // Schedule execution and run whenever there is time for it
-        config.context.evaluate(script, r => (element.textContent = r), onError.bind(null, cerr), environment, {
+        config.context.evaluate(script, (r) => (element.textContent = r), onError.bind(null, cerr), environment, {
           ...config,
           script
         });
@@ -102,8 +106,13 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
       } else {
         evalCollectObserve(
           script,
-          value => {
-            element.textContent = value;
+          (value) => {
+            if (value instanceof HTMLElement) {
+              element.innerHTML = "";
+              element.appendChild(value);
+            } else {
+              element.textContent = value;
+            }
             if (!done) {
               done = true;
               c(value);
@@ -126,15 +135,15 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
 export function VanillinElementAttributes({ element }, c, _cerr, environment, config: VanillinEvaluationConfig) {
   const boundAttrs = element.getAttribute("bind-attrs").split(",");
 
-  boundAttrs.forEach(function(attrName) {
+  boundAttrs.forEach(function (attrName) {
     const attrNameCleaned = attrName.trim();
     const source = element.getAttribute(attrNameCleaned);
     const script = createScript(source, config.context.cache);
 
     evalCollectObserve(
       script,
-      value => (element[attrNameCleaned] = value),
-      e => console.error({ element, e, source, environment }),
+      (value) => (element[attrNameCleaned] = value),
+      (e) => console.error({ element, e, source, environment }),
       environment,
       config
     );
@@ -161,7 +170,7 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
 
   evalCollectObserve(
     createScript(source, config.context.cache),
-    test => {
+    (test) => {
       if (test) {
         if (!consequentElement) {
           consequentElement = template.cloneNode(true);
@@ -195,7 +204,7 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
         }
       }
     },
-    e => {
+    (e) => {
       console.error({ element, source, environment, ...e });
       cerr(e);
     },
@@ -217,7 +226,7 @@ export function VanillinEvaluateChildren(
 
   if (element.children.length) {
     vanillinEval(
-      Array.from(element.children).filter(child => child.nodeType === Node.ELEMENT_NODE) as HTMLElement[],
+      Array.from(element.children).filter((child) => child.nodeType === Node.ELEMENT_NODE) as HTMLElement[],
       c,
       cerr,
       environment,
@@ -233,7 +242,7 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
   element.removeAttribute("callcc");
   config.context.evaluate(
     createScript(receiverSource, config.context.cache),
-    function(receiver) {
+    function (receiver) {
       if (element.hasAttribute("async")) {
         receiver(
           element,

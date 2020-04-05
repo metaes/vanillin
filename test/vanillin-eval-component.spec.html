@@ -3,21 +3,40 @@
 
   <test>
     Supports named arguments
-
-    <function name="f" text>
-      <span bind>text</span>
+    <function name="f" text text2>
+      <span bind>text + ' ' + text2</span>
     </function>
-    <f text="'test'"></f>
+    <f text="'hello'" text2="'world'"></f>
     <script>
-      chai.assert.equal(testElement.querySelectorAll("span")[1].textContent, "test");
+      chai.assert.equal(testElement.querySelectorAll("span")[1].textContent, "hello world");
     </script>
   </test>
 
   <test>
-    Should support
+    Supports slots and named slots
+    <function name="container">
+      <div bind>slottedElements[0]</div>
+    </function>
+    <container><h2>Title</h2></container>
+    <script>
+      chai.assert.equal(
+        testElement.querySelector("container").toSource(),
+        "<container><div bind><h2>Title</h2></div></container>"
+      );
+    </script>
   </test>
 
   <test>
-    Name
+    Supports named slots
+    <function name="container">
+      <div bind>slottedElementsByName['title']</div>
+    </function>
+    <container><h2 name="title">Title</h2></container>
+    <script>
+      chai.assert.equal(
+        testElement.querySelector("container").toSource(),
+        `<container><div bind><h2 name="title">Title</h2></div></container>`
+      );
+    </script>
   </test>
 </describe>

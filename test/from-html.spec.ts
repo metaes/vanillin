@@ -1,8 +1,8 @@
+import * as chai from "chai";
 import { promises as fs } from "fs";
 import { describe, it } from "mocha";
-import { parse, getConfig } from "vanillin-extract";
+import { getConfig, parse } from "vanillin-extract";
 import { bindDOM } from "../lib/vanillin-0";
-import * as chai from "chai";
 
 describe("From HTML tests", async function () {
   const dir = process.cwd() + "/test";
@@ -23,7 +23,7 @@ describe("From HTML tests", async function () {
                     insideDescribeNode.childNodes.slice(1),
                     resolve,
                     (e) => reject(e.value || e),
-                    { testElement: insideDescribeNode, chai },
+                    { testElement: insideDescribeNode, console, chai },
                     getConfig()
                   );
                 });
