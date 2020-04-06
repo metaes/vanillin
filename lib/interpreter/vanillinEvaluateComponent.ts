@@ -16,7 +16,6 @@ type ComponentConstructorResult = {
   onunbind?: () => void;
 };
 
-// TODO: Environment shouldn't be a plain object?
 export type ComponentConstructorArgs = [HTMLElement, (Node & ChildNode)[], Environment, VanillinEvaluationConfig];
 export type ComponentConstructor = (...args: ComponentConstructorArgs) => void | ComponentConstructorResult;
 
@@ -105,12 +104,12 @@ export function VanillinEvaluateComponent(
 
   // Convert children to array to keep DOM elements references alive
   const slottedElements = Array.from(element.children) as HTMLElement[];
-  const slottedElementsByName = slottedElements.reduce(function (all, next) {
-    if (next.hasAttribute("name")) {
-      all[next.getAttribute("name")] = next;
+  const slottedElementsByName = {};
+  for (const element of slottedElements) {
+    if (element.hasAttribute("name")) {
+      slottedElementsByName[element.getAttribute("name")] = element;
     }
-    return all;
-  }, {});
+  }
 
   let usesTemplate = false;
 
