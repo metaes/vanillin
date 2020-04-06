@@ -10,28 +10,28 @@ import { defineComponent } from "../vanillinEnvironment";
 import { assert } from "chai";
 
 describe("Vanillin components", function () {
-  let components: Environment;
+  let interpreters: Environment;
 
   beforeEach(function () {
-    components = { values: {} };
+    interpreters = { values: {} };
   });
 
   describe("Programmatic definition", function () {
     it("supports template string", function () {
-      defineComponent(components, "component1", { templateString: "test" });
+      defineComponent(interpreters, "component1", { templateString: "test" });
 
       const dom = bindDOM(
         `<component1 />`,
         noop,
         console.error,
         {},
-        { ...getConfig(), interpreters: components, schedule: defaultScheduler }
+        { ...getConfig(), interpreters, schedule: defaultScheduler }
       );
       assert.equal(dom.toSource(), `<component1>test</component1>`);
     });
 
     it("supports template url", async function () {
-      defineComponent(components, "component1", { templateUrl: "template_url.html" });
+      defineComponent(interpreters, "component1", { templateUrl: "template_url.html" });
       const config = getConfig();
       config.window.fetch = async function fetch(url: string) {
         return {
@@ -43,7 +43,7 @@ describe("Vanillin components", function () {
       };
       let dom;
       await new Promise(function (resolve, reject) {
-        dom = bindDOM(`<component1 />`, resolve, reject, {}, { ...config, interpreters: components });
+        dom = bindDOM(`<component1 />`, resolve, reject, {}, { ...config, interpreters });
       });
       assert.equal(dom.toSource(), `<component1>test</component1>`);
     });
@@ -52,20 +52,20 @@ describe("Vanillin components", function () {
       const config = getConfig();
       const textNode = config.window.document.createTextNode() as Node;
       textNode.textContent = "test";
-      defineComponent(components, "component1", { templateNode: textNode });
+      defineComponent(interpreters, "component1", { templateNode: textNode });
 
       const dom = bindDOM(
         `<component1 />`,
         noop,
         console.error,
         {},
-        { ...getConfig(), interpreters: components, schedule: defaultScheduler }
+        { ...getConfig(), interpreters, schedule: defaultScheduler }
       );
       assert.equal(dom.toSource(), `<component1>test</component1>`);
     });
 
     it("supports closure", function () {
-      defineComponent(components, "component1", {
+      defineComponent(interpreters, "component1", {
         templateString: `<span bind>message</span>`,
         closure: { values: { message: "hello world" } }
       });
@@ -75,7 +75,7 @@ describe("Vanillin components", function () {
         noop,
         console.error,
         {},
-        { ...getConfig(), interpreters: components, schedule: defaultScheduler }
+        { ...getConfig(), interpreters, schedule: defaultScheduler }
       );
       assert.equal(dom.toSource(), `<component1><span bind>hello world</span></component1>`);
     });
@@ -84,24 +84,18 @@ describe("Vanillin components", function () {
   describe("Component constructor", function () {
     it("supports constructor", function () {
       let called;
-      defineComponent(components, "component1", {
+      defineComponent(interpreters, "component1", {
         ctor() {
           called = true;
         }
       });
-      bindDOM(
-        `<component1 />`,
-        noop,
-        console.error,
-        {},
-        { ...getConfig(), interpreters: components, schedule: defaultScheduler }
-      );
+      bindDOM(`<component1 />`, noop, console.error, {}, { ...getConfig(), interpreters, schedule: defaultScheduler });
       assert.isTrue(called);
     });
 
     it("supports constructor returned value", function () {
       const events: string[] = [];
-      defineComponent(components, "component1", {
+      defineComponent(interpreters, "component1", {
         ctor() {
           events.push("ctor");
           return {
@@ -119,14 +113,14 @@ describe("Vanillin components", function () {
         noop,
         console.error,
         {},
-        { ...getConfig(), interpreters: components, schedule: defaultScheduler }
+        { ...getConfig(), interpreters, schedule: defaultScheduler }
       );
       assert.equal(dom.toSource(), `<component1><span bind>hello world</span></component1>`);
       assert.deepEqual(events, ["ctor", "onbind"], "Incorrect calls order.");
     });
 
     it("supports async constructor", async function () {
-      defineComponent(components, "component1", {
+      defineComponent(interpreters, "component1", {
         ctor: () =>
           Promise.resolve(function ctor() {
             return { environment: { message: "hello world" } };
@@ -136,7 +130,7 @@ describe("Vanillin components", function () {
 
       let dom;
       await new Promise(function (resolve, reject) {
-        dom = bindDOM(`<component1 />`, resolve, reject, {}, { ...getConfig(), interpreters: components });
+        dom = bindDOM(`<component1 />`, resolve, reject, {}, { ...getConfig(), interpreters });
       });
 
       assert.equal(dom.toSource(), `<component1><span bind>hello world</span></component1>`);
