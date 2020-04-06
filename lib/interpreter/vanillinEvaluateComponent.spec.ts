@@ -118,11 +118,31 @@ describe("Vanillin components", function () {
         `<component1 />`,
         noop,
         console.error,
-       {}
+        {},
         { ...getConfig(), interpreters: components, schedule: defaultScheduler }
       );
       assert.equal(dom.toSource(), `<component1><span bind>hello world</span></component1>`);
       assert.deepEqual(events, ["ctor", "onbind"], "Incorrect calls order.");
     });
+
+    it("supports async constructor", async function () {
+      defineComponent(components, "component1", {
+        ctor: () =>
+          Promise.resolve(function ctor() {
+            return { environment: { message: "hello world" } };
+          }),
+        templateString: `<span bind>message</span>`
+      });
+
+      let dom;
+      await new Promise(function (resolve, reject) {
+        dom = bindDOM(`<component1 />`, resolve, reject, {}, { ...getConfig(), interpreters: components });
+      });
+
+      assert.equal(dom.toSource(), `<component1><span bind>hello world</span></component1>`);
+    });
+
+    // proper environment merging
+    // returned environment can be full env
   });
 });

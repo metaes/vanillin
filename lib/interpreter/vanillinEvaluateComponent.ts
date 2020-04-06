@@ -25,7 +25,7 @@ export interface ComponentDefinition {
 }
 
 export type ComponentOptions = {
-  ctor?: Promise<ComponentConstructor> | ComponentConstructor | null;
+  ctor?: ComponentConstructor | ((...args: ComponentConstructorArgs) => Promise<ComponentConstructor>) | null;
   templateString?: string;
   templateUrl?: string;
   templateNode?: Node | NodeList;
@@ -240,7 +240,7 @@ export function VanillinEvaluateComponent(
       function resultReady(constructorResult?) {
         if (constructorResult) {
           state.onbind = constructorResult.onbind;
-          // TODO: this environment should can be both full environment or only 'values' field
+          // TODO: this environment should be able to be both full environment or only 'values' field
           inlineEnv = constructorResult.environment;
         }
         if (inlineEnv) {
@@ -251,6 +251,7 @@ export function VanillinEvaluateComponent(
         }
         c(inlineEnv);
       }
+
       if (constructorResult) {
         if (constructorResult instanceof Promise) {
           constructorResult.then((ctor) => resultReady(ctor(...ctorArguments))).catch(cerr);
