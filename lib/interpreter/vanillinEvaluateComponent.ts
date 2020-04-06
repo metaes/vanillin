@@ -90,306 +90,314 @@ export function VanillinEvaluateComponent(
     window: { DocumentFragment, HTMLElement, NodeList }
   } = config;
 
-  const componentName = element.hasAttribute(COMPONENT_ATTRIBUTE_NAME)
-    ? element.getAttribute(COMPONENT_ATTRIBUTE_NAME)!
-    : element.nodeName.toLowerCase();
-  const definition: ComponentDefinition = GetValueSync(componentName, interpreters);
-  if (!definition) {
-    cerr(new Error(`Can't find "${componentName}" component`));
-    return;
+  const bindComponentAttrValue = element.getAttribute(COMPONENT_ATTRIBUTE_NAME);
+  if (bindComponentAttrValue) {
+    evalMaybeExpression(bindComponentAttrValue, getComponentByName, cerr, closureEnvironment, config);
+  } else {
+    getComponentByName(element.nodeName.toLowerCase());
   }
-  const {
-    options: { templateUrl, templateNode, templateString, slotSelector, ctor }
-  } = definition;
-
-  // Convert children to array to keep DOM elements references alive
-  const slottedElements = Array.from(element.children) as HTMLElement[];
-  const slottedElementsByName = {};
-  for (const element of slottedElements) {
-    if (element.hasAttribute("name")) {
-      slottedElementsByName[element.getAttribute("name")] = element;
+  function getComponentByName(componentName: string) {
+    const definition: ComponentDefinition = GetValueSync(componentName, interpreters);
+    if (definition) {
+      onComponentFound(definition);
+    } else {
+      cerr(new Error(`Can't find "${componentName}" component`));
     }
   }
+  function onComponentFound(definition: ComponentDefinition) {
+    const {
+      options: { templateUrl, templateNode, templateString, slotSelector, ctor }
+    } = definition;
 
-  let usesTemplate = false;
+    // Convert children to array to keep DOM elements references alive
+    const slottedElements = Array.from(element.children) as HTMLElement[];
+    const slottedElementsByName = {};
+    for (const element of slottedElements) {
+      if (element.hasAttribute("name")) {
+        slottedElementsByName[element.getAttribute("name")] = element;
+      }
+    }
 
-  if (templateNode || templateString || templateUrl) {
-    /**
-     * Remove children arguments from DOM.
-     * They should be attached by component in onbind method.
-     * If no slotSelector is defined not components body doesn't append them,
-     * DOM arguments won't be be attached.
-     */
-    element.innerHTML = "";
-    usesTemplate = true;
-  }
+    let usesTemplate = false;
 
-  const state: {
-    /**
-     * Children environment. Children are HTML elements passed in during component instantiation.
-     * In worst case component DOM children have access only to component instance environment.
-     * Attribute arguments shouldn't be available here.
-     */
-    childrenEnv: Environment;
+    if (templateNode || templateString || templateUrl) {
+      /**
+       * Remove children arguments from DOM.
+       * They should be attached by component in onbind method.
+       * If no slotSelector is defined not components body doesn't append them,
+       * DOM arguments won't be be attached.
+       */
+      element.innerHTML = "";
+      usesTemplate = true;
+    }
 
-    /**
-     * Body environment. Body is a HTML contained in component's template.
-     *
-     * In worst case component body has no environment avialable or only values coming from arguments attribute.
-     * Or if it has defined closure in options, it means component was produced from inline HTML. Use it as a base.
-     * Values in arguments will override closure, just like in ECMAScript functions.
-     */
-    bodyEnv?: Environment;
+    const state: {
+      /**
+       * Children environment. Children are HTML elements passed in during component instantiation.
+       * In worst case component DOM children have access only to component instance environment.
+       * Attribute arguments shouldn't be available here.
+       */
+      childrenEnv: Environment;
 
-    bodyDOM?: HTMLElement | NodeList | HTMLElement[] | Node[] | Node;
+      /**
+       * Body environment. Body is a HTML contained in component's template.
+       *
+       * In worst case component body has no environment avialable or only values coming from arguments attribute.
+       * Or if it has defined closure in options, it means component was produced from inline HTML. Use it as a base.
+       * Values in arguments will override closure, just like in ECMAScript functions.
+       */
+      bodyEnv?: Environment;
 
-    // Maybe wait for constructor onbind method being assigned and run it at the end if avaiable.
-    onbind?: () => void;
-  } = { childrenEnv: closureEnvironment };
+      bodyDOM?: HTMLElement | NodeList | HTMLElement[] | Node[] | Node;
 
-  function templateToState(template: undefined | typeof state.bodyDOM) {
-    if (template) {
-      let templateAttrs;
-      if (template instanceof DocumentFragment) {
-        if (template.childNodes.length === 1) {
-          return templateToState(template.childNodes[0]);
+      // Maybe wait for constructor onbind method being assigned and run it at the end if avaiable.
+      onbind?: () => void;
+    } = { childrenEnv: closureEnvironment };
+
+    function templateToState(template: undefined | typeof state.bodyDOM) {
+      if (template) {
+        let templateAttrs;
+        if (template instanceof DocumentFragment) {
+          if (template.childNodes.length === 1) {
+            return templateToState(template.childNodes[0]);
+          } else {
+            return templateToState(template.childNodes);
+          }
+        } else if (template instanceof HTMLElement && template.nodeName.toLowerCase() === "function") {
+          templateAttrs = template.attributes;
+          template = template.childNodes;
+        }
+        // Immediately add template to component element
+        if (template instanceof NodeList || Array.isArray(template)) {
+          Array.from(template).forEach((child) => element.appendChild(child));
         } else {
-          return templateToState(template.childNodes);
+          element.appendChild(template);
         }
-      } else if (template instanceof HTMLElement && template.nodeName.toLowerCase() === "function") {
-        templateAttrs = template.attributes;
-        template = template.childNodes;
+        state.bodyDOM = element.childNodes;
+        return { templateAttrs, bodyDOM: element.childNodes };
       }
-      // Immediately add template to component element
-      if (template instanceof NodeList || Array.isArray(template)) {
-        Array.from(template).forEach((child) => element.appendChild(child));
-      } else {
-        element.appendChild(template);
-      }
-      state.bodyDOM = element.childNodes;
-      return { templateAttrs, bodyDOM: element.childNodes };
+      return {};
     }
-    return {};
-  }
 
-  function evalParamsAndArgs([templateAttributes]: [NamedNodeMap | null], c, cerr) {
-    const declaredParams = Array.from(templateAttributes || [])
-      .filter((attr) => attr.name !== "name")
-      .reduce(toObject, {});
-    const providedArguments = Array.from(element.attributes)
-      .filter((attr: Attr) => declaredParams.hasOwnProperty(attr.name))
-      .reduce(toObject, {});
+    function evalParamsAndArgs([templateAttributes]: [NamedNodeMap | null], c, cerr) {
+      const declaredParams = Array.from(templateAttributes || [])
+        .filter((attr) => attr.name !== "name")
+        .reduce(toObject, {});
+      const providedArguments = Array.from(element.attributes)
+        .filter((attr: Attr) => declaredParams.hasOwnProperty(attr.name))
+        .reduce(toObject, {});
 
-    visitArray(
-      Object.keys(declaredParams),
-      (key, c, _cerr) =>
-        evalMaybeExpression(
-          providedArguments[key] || declaredParams[key],
-          (value) => c({ name: key, value }),
-          // if default value is not provided - couldn't have been parsed - use undefined
-          (_error) => c({ name: key }),
-          closureEnvironment,
-          config
-        ),
-      (namedArguments) => {
-        namedArguments = namedArguments.reduce(toObject, {});
-        element.hasAttribute("arguments")
-          ? evalMaybeExpression(
-              element.getAttribute("arguments"),
-              (argumentsAttrObject) => c({ argumentsAttrObject, namedArguments }),
-              cerr,
-              closureEnvironment,
-              config
-            )
-          : c({ namedArguments });
-      },
-      cerr
-    );
-  }
+      visitArray(
+        Object.keys(declaredParams),
+        (key, c, _cerr) =>
+          evalMaybeExpression(
+            providedArguments[key] || declaredParams[key],
+            (value) => c({ name: key, value }),
+            // if default value is not provided - couldn't have been parsed - use undefined
+            (_error) => c({ name: key }),
+            closureEnvironment,
+            config
+          ),
+        (namedArguments) => {
+          namedArguments = namedArguments.reduce(toObject, {});
+          element.hasAttribute("arguments")
+            ? evalMaybeExpression(
+                element.getAttribute("arguments"),
+                (argumentsAttrObject) => c({ argumentsAttrObject, namedArguments }),
+                cerr,
+                closureEnvironment,
+                config
+              )
+            : c({ namedArguments });
+        },
+        cerr
+      );
+    }
 
-  function getInlineEnvironment([{ argumentsAttrObject, namedArguments }], c, cerr) {
-    state.bodyEnv = newEnvironmentFrom(
-      {
-        arguments: { ...argumentsAttrObject, ...namedArguments },
-        ...namedArguments,
-        slottedElements,
-        slottedElementsByName
-      },
-      definition.options.closure || { values: {} }
-    );
-
-    /**
-     * inlineEnv shouldn't happen when closure is defined. It would mean that component was both
-     * inline and defined in registry.
-     */
-    let inlineEnv;
-
-    if (ctor) {
-      const ctorArguments: ComponentConstructorArgs = [
-        element,
-        slottedElements,
-        state.bodyEnv,
-        // New registry environment for each component instance. It's like a function call.
+    function getInlineEnvironment([{ argumentsAttrObject, namedArguments }], c, cerr) {
+      state.bodyEnv = newEnvironmentFrom(
         {
-          ...config,
-          ...{ interpreters: { values: {}, prev: config.interpreters } }
-        }
-      ];
-      const constructorResult = ctor(...ctorArguments);
+          arguments: { ...argumentsAttrObject, ...namedArguments },
+          ...namedArguments,
+          slottedElements,
+          slottedElementsByName
+        },
+        definition.options.closure || { values: {} }
+      );
 
-      function resultReady(constructorResult?) {
+      /**
+       * inlineEnv shouldn't happen when closure is defined. It would mean that component was both
+       * inline and defined in registry.
+       */
+      let inlineEnv;
+
+      if (ctor) {
+        const ctorArguments: ComponentConstructorArgs = [
+          element,
+          slottedElements,
+          state.bodyEnv,
+          // New registry environment for each component instance. It's like a function call.
+          {
+            ...config,
+            ...{ interpreters: { values: {}, prev: config.interpreters } }
+          }
+        ];
+        const constructorResult = ctor(...ctorArguments);
+
+        function resultReady(constructorResult?) {
+          if (constructorResult) {
+            state.onbind = constructorResult.onbind;
+            // TODO: this environment should be able to be both full environment or only 'values' field
+            inlineEnv = constructorResult.environment;
+          }
+          if (inlineEnv) {
+            state.bodyEnv = newEnvironmentFrom(argumentsAttrObject, {
+              values: inlineEnv,
+              prev: state.bodyEnv
+            });
+          }
+          c(inlineEnv);
+        }
+
         if (constructorResult) {
-          state.onbind = constructorResult.onbind;
-          // TODO: this environment should be able to be both full environment or only 'values' field
-          inlineEnv = constructorResult.environment;
+          if (constructorResult instanceof Promise) {
+            constructorResult.then((ctor) => resultReady(ctor(...ctorArguments))).catch(cerr);
+          } else {
+            resultReady(constructorResult);
+          }
+        } else {
+          resultReady();
         }
-        if (inlineEnv) {
-          state.bodyEnv = newEnvironmentFrom(argumentsAttrObject, {
-            values: inlineEnv,
-            prev: state.bodyEnv
-          });
-        }
+      } else {
         c(inlineEnv);
       }
+    }
 
-      if (constructorResult) {
-        if (constructorResult instanceof Promise) {
-          constructorResult.then((ctor) => resultReady(ctor(...ctorArguments))).catch(cerr);
+    function inlineEnvironmentToState([inlineEnv]: [Environment], c, cerr) {
+      if (element.hasAttribute("closure")) {
+        evalMaybeExpression(
+          element.getAttribute("closure"),
+          (closureAttributeValue) => {
+            if (closureAttributeValue) {
+              // closure of component body and component arguments are not included here,
+              // only closure with values evaluated from `closure` attribute.
+              state.childrenEnv = {
+                values: closureAttributeValue,
+                prev: closureEnvironment
+              };
+            }
+            c();
+          },
+          cerr,
+          {
+            values: inlineEnv,
+            prev: closureEnvironment
+          },
+          config
+        );
+      } else {
+        c();
+      }
+    }
+
+    /**
+     * Loaded template has access only to component arguments and body values.
+     * It represents concept of static reference biding.
+     * It shouldn't see runtime surrounding values (a.k.a. dynamic binding).
+     */
+    function bindBodyDOM([bodyDOM], c, cerr) {
+      return bindDOM(bodyDOM, c, cerr, state.bodyEnv, config);
+    }
+
+    /**
+     * Run component passed in children DOM arguments only with surrounding component closure
+     * plus `closure` attribute evaluated value which extracts values from JavaScript part.
+     * It mutates children environment in a controlled way.
+     */
+    function bindChildrenElements(_, c, cerr) {
+      function run() {
+        bindDOM(slottedElements, c, cerr, state.childrenEnv, config);
+      }
+      if (usesTemplate && slotSelector) {
+        const slot = slotSelector ? element.querySelector(slotSelector) : element;
+        if (slot) {
+          slottedElements.forEach((child) => slot.appendChild(child));
+          run();
         } else {
-          resultReady(constructorResult);
+          cerr(new Error("Can't find slot for children."));
         }
       } else {
-        resultReady();
+        run();
       }
-    } else {
-      c(inlineEnv);
     }
-  }
 
-  function inlineEnvironmentToState([inlineEnv]: [Environment], c, cerr) {
-    if (element.hasAttribute("closure")) {
-      evalMaybeExpression(
-        element.getAttribute("closure"),
-        (closureAttributeValue) => {
-          if (closureAttributeValue) {
-            // closure of component body and component arguments are not included here,
-            // only closure with values evaluated from `closure` attribute.
-            state.childrenEnv = {
-              values: closureAttributeValue,
-              prev: closureEnvironment
-            };
-          }
-          c();
-        },
-        cerr,
-        {
-          values: inlineEnv,
-          prev: closureEnvironment
-        },
-        config
-      );
-    } else {
+    /**
+     * body is just a JavaScript vanilla function, run it.
+     * It's important to run it at the end, because body function
+     * can attach children to template which will destroy execution order.
+     * Don't await, it should be always synchronous code.
+     */
+    function callOnBind() {
+      if (state.onbind) {
+        state.onbind();
+      }
+      bindEventHandlers(element, closureEnvironment, config);
+    }
+
+    function runner(
+      templateToState,
+      callOnBind,
+      options,
+      evalParamsAndArgs,
+      getInlineEnvironment,
+      getTemplate,
+      inlineEnvironmentToState,
+      bindBodyDOM,
+      bindChildrenElements
+    ) {
+      const { templateAttrs, bodyDOM } = templateToState(getTemplate(options));
+      inlineEnvironmentToState(getInlineEnvironment(evalParamsAndArgs(templateAttrs)));
+      bindBodyDOM(bodyDOM);
+      bindChildrenElements();
+      callOnBind();
+    }
+    const runner_MetaesFunction: MetaesFunction = {
+      e:
+        runnerAST ||
+        (runnerAST = ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
+          .expression as FunctionNode),
+      closure: closureEnvironment,
+      config: { ...config, schedule: getTrampoliningScheduler() }
+    };
+
+    let finished = false;
+    evaluateMetaFunction(
+      runner_MetaesFunction,
+      (value) => {
+        if (!finished) {
+          c(value);
+          finished = true;
+        }
+      },
+      cerr,
+      undefined,
+      [templateToState, callOnBind, definition.options].concat(
+        Object.values(
+          liftedAll({
+            evalParamsAndArgs,
+            getInlineEnvironment,
+            getTemplate,
+            inlineEnvironmentToState,
+            bindBodyDOM,
+            bindChildrenElements
+          })
+        )
+      )
+    );
+
+    if (element.hasAttribute("async")) {
+      finished = true;
       c();
     }
-  }
-
-  /**
-   * Loaded template has access only to component arguments and body values.
-   * It represents concept of static reference biding.
-   * It shouldn't see runtime surrounding values (a.k.a. dynamic binding).
-   */
-  function bindBodyDOM([bodyDOM], c, cerr) {
-    return bindDOM(bodyDOM, c, cerr, state.bodyEnv, config);
-  }
-
-  /**
-   * Run component passed in children DOM arguments only with surrounding component closure
-   * plus `closure` attribute evaluated value which extracts values from JavaScript part.
-   * It mutates children environment in a controlled way.
-   */
-  function bindChildrenElements(_, c, cerr) {
-    function run() {
-      bindDOM(slottedElements, c, cerr, state.childrenEnv, config);
-    }
-    if (usesTemplate && slotSelector) {
-      const slot = slotSelector ? element.querySelector(slotSelector) : element;
-      if (slot) {
-        slottedElements.forEach((child) => slot.appendChild(child));
-        run();
-      } else {
-        cerr(new Error("Can't find slot for children."));
-      }
-    } else {
-      run();
-    }
-  }
-
-  /**
-   * body is just a JavaScript vanilla function, run it.
-   * It's important to run it at the end, because body function
-   * can attach children to template which will destroy execution order.
-   * Don't await, it should be always synchronous code.
-   */
-  function callOnBind() {
-    if (state.onbind) {
-      state.onbind();
-    }
-    bindEventHandlers(element, closureEnvironment, config);
-  }
-
-  function runner(
-    templateToState,
-    callOnBind,
-    options,
-    evalParamsAndArgs,
-    getInlineEnvironment,
-    getTemplate,
-    inlineEnvironmentToState,
-    bindBodyDOM,
-    bindChildrenElements
-  ) {
-    const { templateAttrs, bodyDOM } = templateToState(getTemplate(options));
-    inlineEnvironmentToState(getInlineEnvironment(evalParamsAndArgs(templateAttrs)));
-    bindBodyDOM(bodyDOM);
-    bindChildrenElements();
-    callOnBind();
-  }
-  const runner_MetaesFunction: MetaesFunction = {
-    e:
-      runnerAST ||
-      (runnerAST = ((parseFunction(runner, config.context.cache) as Program).body[0] as ExpressionStatement)
-        .expression as FunctionNode),
-    closure: closureEnvironment,
-    config: { ...config, schedule: getTrampoliningScheduler() }
-  };
-
-  let finished = false;
-  evaluateMetaFunction(
-    runner_MetaesFunction,
-    (value) => {
-      if (!finished) {
-        c(value);
-        finished = true;
-      }
-    },
-    cerr,
-    undefined,
-    [templateToState, callOnBind, definition.options].concat(
-      Object.values(
-        liftedAll({
-          evalParamsAndArgs,
-          getInlineEnvironment,
-          getTemplate,
-          inlineEnvironmentToState,
-          bindBodyDOM,
-          bindChildrenElements
-        })
-      )
-    )
-  );
-
-  if (element.hasAttribute("async")) {
-    finished = true;
-    c();
   }
 }

@@ -15,6 +15,14 @@
 
   <test>
     Supports bind-component attribute
+
+    <function name="f"><span>test</span></function>
+
+    <div bind-component="'f'"></div>
+
+    <script>
+      chai.assert.equal(testElement.querySelector("div").textContent, "test");
+    </script>
   </test>
 
   <test>
