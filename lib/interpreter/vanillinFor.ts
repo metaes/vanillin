@@ -1,5 +1,4 @@
 import { callcc, lifted } from "metaes/callcc";
-import { defaultScheduler } from "metaes/evaluate";
 import { createScript } from "metaes/metaes";
 import { ASTNode, Continuation, Environment, Evaluation } from "metaes/types";
 import { EvaluationListener } from "../observable";

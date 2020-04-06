@@ -160,21 +160,21 @@ export function stringToDOM(source: string, config: VanillinEvaluationConfig): D
 }
 
 export function getTemplate(
-  [{ templateUrl, templateElement, templateString }]: [ComponentOptions],
+  [{ templateUrl, templateNode, templateString }]: [ComponentOptions],
   c,
   cerr,
   env,
   config: VanillinEvaluationConfig
 ) {
   const { NodeList } = config.window;
-  
+
   if (templateUrl) {
     createDOMElementFromURL(templateUrl, c, cerr, env, config);
-  } else if (templateElement) {
-    if (templateElement instanceof NodeList) {
-      c(Array.from(templateElement).map((node) => node.cloneNode(true)));
+  } else if (templateNode) {
+    if (templateNode instanceof NodeList) {
+      c(Array.from(templateNode).map((node) => node.cloneNode(true)));
     } else {
-      c(templateElement.cloneNode(true));
+      c(templateNode.cloneNode(true));
     }
   } else if (templateString) {
     c(stringToDOM(templateString, config));
@@ -360,8 +360,8 @@ export function VanillinEvaluateElement(
 
 function vanillinFunctionDeclaration(element, environment, config: VanillinEvaluationConfig) {
   if (element.hasAttribute("name")) {
-    defineComponent(config.interpreters, element.getAttribute("name")!, null, {
-      templateElement: element.cloneNode(true),
+    defineComponent(config.interpreters, element.getAttribute("name")!, {
+      templateNode: element.cloneNode(true),
       closure: environment
     });
     if (element.parentElement) {

@@ -22,17 +22,17 @@ export type ComponentConstructor = (...args: ComponentConstructorArgs) => void |
 
 export interface ComponentDefinition {
   name: string;
-  constructor?: ComponentConstructor | ((...args: ComponentConstructorArgs) => Promise<ComponentConstructor>) | null;
   options: ComponentOptions;
 }
 
-export interface ComponentOptions {
+export type ComponentOptions = {
+  ctor?: Promise<ComponentConstructor> | ComponentConstructor | null;
   templateString?: string;
   templateUrl?: string;
-  templateElement?: HTMLElement | NodeList;
+  templateNode?: Node | NodeList;
   closure?: Environment;
   slotSelector?: string;
-}
+};
 
 export const COMPONENT_ATTRIBUTE_NAME = "bind-component";
 
@@ -91,16 +91,16 @@ export function VanillinEvaluateComponent(
     window: { DocumentFragment, HTMLElement, NodeList }
   } = config;
 
-  const byAttribute = element.hasAttribute(COMPONENT_ATTRIBUTE_NAME);
-  const componentName = byAttribute ? element.getAttribute(COMPONENT_ATTRIBUTE_NAME)! : element.nodeName.toLowerCase();
+  const componentName = element.hasAttribute(COMPONENT_ATTRIBUTE_NAME)
+    ? element.getAttribute(COMPONENT_ATTRIBUTE_NAME)!
+    : element.nodeName.toLowerCase();
   const definition: ComponentDefinition = GetValueSync(componentName, interpreters);
   if (!definition) {
     cerr(new Error(`Can't find "${componentName}" component`));
     return;
   }
   const {
-    options: { templateUrl, templateElement, templateString, slotSelector },
-    constructor
+    options: { templateUrl, templateNode, templateString, slotSelector, ctor }
   } = definition;
 
   // Convert children to array to keep DOM elements references alive
@@ -114,7 +114,7 @@ export function VanillinEvaluateComponent(
 
   let usesTemplate = false;
 
-  if (templateElement || templateString || templateUrl) {
+  if (templateNode || templateString || templateUrl) {
     /**
      * Remove children arguments from DOM.
      * They should be attached by component in onbind method.
@@ -225,7 +225,7 @@ export function VanillinEvaluateComponent(
      */
     let inlineEnv;
 
-    if (constructor) {
+    if (ctor) {
       const ctorArguments: ComponentConstructorArgs = [
         element,
         slottedElements,
@@ -236,7 +236,7 @@ export function VanillinEvaluateComponent(
           ...{ interpreters: { values: {}, prev: config.interpreters } }
         }
       ];
-      const constructorResult = constructor(...ctorArguments);
+      const constructorResult = ctor(...ctorArguments);
 
       function resultReady(constructorResult?) {
         if (constructorResult) {

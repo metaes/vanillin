@@ -1,0 +1,23 @@
+<describe>
+  Bindings
+
+  <test>
+    Supports bind attribute
+
+    <script>
+      let value = 44;
+    </script>
+    <div bind>value</div>
+    <script>
+      chai.assert.equal(testElement.querySelector("div").textContent, value);
+    </script>
+  </test>
+
+  <test>
+    Supports bind-component attribute
+  </test>
+
+  <test>
+    Supports bind-attrs attribute
+  </test>
+</describe>
