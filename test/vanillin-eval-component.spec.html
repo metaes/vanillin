@@ -14,10 +14,10 @@
   </test>
 
   <test>
-    Supports slots
+    Supports passed children
 
     <function name="container">
-      <div bind>slottedElements[0]</div>
+      <div bind>children[0]</div>
     </function>
     <container><h2>Title</h2></container>
     <script>
@@ -29,10 +29,10 @@
   </test>
 
   <test>
-    Supports named slots
+    Supports named children
 
     <function name="container">
-      <div bind>slottedElementsByName['title']</div>
+      <div bind>children['title']</div>
     </function>
     <container><h2 name="title">Title</h2></container>
     <script>
@@ -44,11 +44,11 @@
   </test>
 
   <test>
-    Supports slotted elements as functions
+    Supports passed children evaluated as functions
 
     <function name="items-list" items>
       <ul>
-        <li for="let item of items" bind-component="slottedElementsByName['item-component']" item="item"></li>
+        <li for="let item of items" bind-component="children['item-component']" item="item"></li>
       </ul>
     </function>
 

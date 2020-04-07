@@ -14,11 +14,23 @@
   </test>
 
   <test>
-    Supports bind-component attribute
+    Supports bind-component attribute by string
+
+    <function name="a-component"><span>test</span></function>
+
+    <div bind-component="'a-component'"></div>
+
+    <script>
+      chai.assert.equal(testElement.querySelector("div").textContent, "test");
+    </script>
+  </test>
+
+  <test>
+    Supports bind-component attribute by reference
 
     <function name="f"><span>test</span></function>
 
-    <div bind-component="'f'"></div>
+    <div bind-component="f"></div>
 
     <script>
       chai.assert.equal(testElement.querySelector("div").textContent, "test");

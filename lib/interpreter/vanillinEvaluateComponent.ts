@@ -1,5 +1,5 @@
 import { liftedAll } from "metaes/callcc";
-import { GetValueSync } from "metaes/environment";
+import { GetValueSync, GetValue } from "metaes/environment";
 import { visitArray } from "metaes/evaluate";
 import { createScript, parseFunction } from "metaes/metaes";
 import { evaluateMetaFunction } from "metaes/metafunction";
@@ -89,30 +89,38 @@ export function VanillinEvaluateComponent(
   } = config;
 
   const bindComponentAttrValue = element.getAttribute(COMPONENT_ATTRIBUTE_NAME);
+
   if (bindComponentAttrValue) {
     evalMaybeExpression(bindComponentAttrValue, getComponentByName, cerr, closureEnvironment, config);
   } else {
     getComponentByName(element.nodeName.toLowerCase());
   }
-  function getComponentByName(componentName: string) {
-    const definition: ComponentDefinition = GetValueSync(componentName, closureEnvironment);
-    if (definition) {
-      onComponentFound(definition);
+
+  function getComponentByName(value: string | any) {
+    if (typeof value === "string") {
+      GetValue(
+        { name: value },
+        (definition) =>
+          definition ? onComponentFound(definition) : cerr(new Error(`Can't find "${value}" component`)),
+        cerr,
+        closureEnvironment
+      );
     } else {
-      cerr(new Error(`Can't find "${componentName}" component`));
+      onComponentFound(value);
     }
   }
+
   function onComponentFound(definition: ComponentDefinition) {
     const {
       options: { templateUrl, templateNode, templateString, slotSelector, ctor }
     } = definition;
 
     // Convert children to array to keep DOM elements references alive
-    const slottedElements = Array.from(element.children) as HTMLElement[];
-    const slottedElementsByName = {};
-    for (const element of slottedElements) {
+    const children = Array.from(element.children) as HTMLElement[];
+
+    for (const element of children) {
       if (element.hasAttribute("name")) {
-        slottedElementsByName[element.getAttribute("name")] = element;
+        children[element.getAttribute("name")] = element;
       }
     }
 
@@ -217,8 +225,7 @@ export function VanillinEvaluateComponent(
         {
           arguments: { ...argumentsAttrObject, ...namedArguments },
           ...namedArguments,
-          slottedElements,
-          slottedElementsByName
+          children
         },
         definition.options.closure || { values: {} }
       );
@@ -230,7 +237,7 @@ export function VanillinEvaluateComponent(
       let inlineEnv;
 
       if (ctor) {
-        const ctorArguments: ComponentConstructorArgs = [element, slottedElements, state.bodyEnv, config];
+        const ctorArguments: ComponentConstructorArgs = [element, children, state.bodyEnv, config];
         const constructorResult = ctor(...ctorArguments);
 
         function resultReady(constructorResult?) {
@@ -305,12 +312,12 @@ export function VanillinEvaluateComponent(
      */
     function bindChildrenElements(_, c, cerr) {
       function run() {
-        bindDOM(slottedElements, c, cerr, state.childrenEnv, config);
+        bindDOM(children, c, cerr, state.childrenEnv, config);
       }
       if (usesTemplate && slotSelector) {
         const slot = slotSelector ? element.querySelector(slotSelector) : element;
         if (slot) {
-          slottedElements.forEach((child) => slot.appendChild(child));
+          children.forEach((child) => slot.appendChild(child));
           run();
         } else {
           cerr(new Error("Can't find slot for children."));

@@ -17,17 +17,21 @@ describe("Vanillin components", function () {
   });
 
   describe("Programmatic definition", function () {
-    it("supports template string", function () {
+    it("supports template string", async function () {
       defineComponent(env, "component1", { templateString: "test" });
 
-      const dom = bindDOM(`<component1 />`, noop, console.error, env, { ...getConfig(), schedule: defaultScheduler });
+      let dom;
+      await new Promise(function (resolve, reject) {
+        dom = bindDOM(`<component1 />`, resolve, reject, env, { ...getConfig(), schedule: defaultScheduler });
+      });
+
       assert.equal(dom.toSource(), `<component1>test</component1>`);
     });
 
     it("supports template url", async function () {
       defineComponent(env, "component1", { templateUrl: "anything.html" });
       const config = getConfig();
-      config.window.fetch = async function fetch(url: string) {
+      config.window.fetch = async function fetch(_url) {
         return {
           async text() {
             return `test`;
