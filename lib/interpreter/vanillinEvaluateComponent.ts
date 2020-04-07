@@ -84,9 +84,7 @@ export function VanillinEvaluateComponent(
   closureEnvironment: Environment,
   config: VanillinEvaluationConfig
 ) {
-  // TODO: create new registry for new component
   const {
-    interpreters,
     window: { DocumentFragment, HTMLElement, NodeList }
   } = config;
 
@@ -97,7 +95,7 @@ export function VanillinEvaluateComponent(
     getComponentByName(element.nodeName.toLowerCase());
   }
   function getComponentByName(componentName: string) {
-    const definition: ComponentDefinition = GetValueSync(componentName, interpreters);
+    const definition: ComponentDefinition = GetValueSync(componentName, closureEnvironment);
     if (definition) {
       onComponentFound(definition);
     } else {
@@ -232,16 +230,7 @@ export function VanillinEvaluateComponent(
       let inlineEnv;
 
       if (ctor) {
-        const ctorArguments: ComponentConstructorArgs = [
-          element,
-          slottedElements,
-          state.bodyEnv,
-          // New registry environment for each component instance. It's like a function call.
-          {
-            ...config,
-            ...{ interpreters: { values: {}, prev: config.interpreters } }
-          }
-        ];
+        const ctorArguments: ComponentConstructorArgs = [element, slottedElements, state.bodyEnv, config];
         const constructorResult = ctor(...ctorArguments);
 
         function resultReady(constructorResult?) {

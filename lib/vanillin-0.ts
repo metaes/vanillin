@@ -245,15 +245,7 @@ export function bindDOM(
       config.context = new ObservableContext(env);
     }
 
-    const shouldReplaceOriginalEnviornment = env && "values" in env && "prev" in env;
-
-    vanillinEval(
-      dom,
-      c,
-      cerr,
-      shouldReplaceOriginalEnviornment ? (env as Environment) : { values: env, prev: config.context.environment },
-      config
-    );
+    vanillinEval(dom, c, cerr, toEnvironment(env), config);
   } else {
     c();
   }
@@ -312,11 +304,8 @@ export function VanillinEvaluateElement(
   } else if (hasAttrs && element.hasAttribute("for") && nodeName !== "label") {
     statements.push("VanillinFor");
   } else if (nodeName === "function") {
-    vanillinFunctionDeclaration(element, environment, config);
-  } else if (
-    (hasAttrs && element.hasAttribute(COMPONENT_ATTRIBUTE_NAME)) ||
-    GetValueSync(nodeName, config.interpreters)
-  ) {
+    vanillinFunctionDeclaration(element, environment);
+  } else if ((hasAttrs && element.hasAttribute(COMPONENT_ATTRIBUTE_NAME)) || GetValueSync(nodeName, environment)) {
     statements.push("VanillinEvaluateComponent");
   } else if (nodeName === "script" && element.textContent) {
     statements.push("VanillinScriptElement");
@@ -358,9 +347,9 @@ export function VanillinEvaluateElement(
   }
 }
 
-function vanillinFunctionDeclaration(element, environment, config: VanillinEvaluationConfig) {
+function vanillinFunctionDeclaration(element, environment: Environment) {
   if (element.hasAttribute("name")) {
-    defineComponent(config.interpreters, element.getAttribute("name")!, {
+    defineComponent(environment, element.getAttribute("name")!, {
       templateNode: element.cloneNode(true),
       closure: environment
     });
