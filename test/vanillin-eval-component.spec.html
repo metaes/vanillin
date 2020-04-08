@@ -48,15 +48,22 @@
 
     <function name="items-list" items>
       <ul>
-        <li for="let item of items" bind-component="children['item-component']" item="item"></li>
+        <li for="let item of items" bind-component="'cmp'" item="item"></li>
       </ul>
     </function>
 
     <items-list items="[1,2,3]">
-      <function name="item-component" item><span bind>item</span></function>
+      <function name="cmp" item><span bind>item</span></function>
     </items-list>
+
     <script>
-      chai.assert.equal(testElement.querySelector("container").toSource(), `error`);
+      chai.assert.deepEqual(
+        testElement
+          .querySelector("items-list")
+          .querySelectorAll("span")
+          .map((e) => e.textContent),
+        ["1", "2", "3"]
+      );
     </script>
   </test>
 </describe>

@@ -1,8 +1,9 @@
 import { liftedAll } from "metaes/callcc";
-import { GetValueSync, GetValue } from "metaes/environment";
+import { GetValue } from "metaes/environment";
 import { visitArray } from "metaes/evaluate";
 import { createScript, parseFunction } from "metaes/metaes";
 import { evaluateMetaFunction } from "metaes/metafunction";
+import { toException } from "metaes/exceptions";
 import { ExpressionStatement, FunctionNode, Program } from "metaes/nodeTypes";
 import { ParseError } from "metaes/parse";
 import { Continuation, Environment, ErrorContinuation, MetaesFunction } from "metaes/types";
@@ -35,12 +36,7 @@ export type ComponentOptions = {
 
 export const COMPONENT_ATTRIBUTE_NAME = "bind-component";
 
-function toObject(prev, next: Attr) {
-  prev[next.name] = next.value;
-  return prev;
-}
-
-function evalMaybeExpression(source: string, c, cerr, closure: Environment, config: VanillinEvaluationConfig) {
+function evalAttributeScript(source: string, c, cerr, closure: Environment, config: VanillinEvaluationConfig) {
   const { context } = config;
   const { cache } = context;
 
@@ -75,6 +71,10 @@ function evalMaybeExpression(source: string, c, cerr, closure: Environment, conf
   }
 }
 
+function isComponentDefinition(value?: any): value is ComponentDefinition {
+  return value?.name && value?.options;
+}
+
 let runnerAST: FunctionNode;
 
 export function VanillinEvaluateComponent(
@@ -91,7 +91,13 @@ export function VanillinEvaluateComponent(
   const bindComponentAttrValue = element.getAttribute(COMPONENT_ATTRIBUTE_NAME);
 
   if (bindComponentAttrValue) {
-    evalMaybeExpression(bindComponentAttrValue, getComponentByName, cerr, closureEnvironment, config);
+    GetValue(
+      { name: bindComponentAttrValue },
+      getComponentByName,
+      () => evalAttributeScript(bindComponentAttrValue, getComponentByName, cerr, closureEnvironment, config),
+      closureEnvironment,
+      config
+    );
   } else {
     getComponentByName(element.nodeName.toLowerCase());
   }
@@ -105,8 +111,10 @@ export function VanillinEvaluateComponent(
         cerr,
         closureEnvironment
       );
-    } else {
+    } else if (isComponentDefinition(value)) {
       onComponentFound(value);
+    } else {
+      cerr(toException(new Error(`${value} is not a valid component definition.`), value));
     }
   }
 
@@ -137,7 +145,7 @@ export function VanillinEvaluateComponent(
       usesTemplate = true;
     }
 
-    const state: {
+    type State = {
       /**
        * Children environment. Children are HTML elements passed in during component instantiation.
        * In worst case component DOM children have access only to component instance environment.
@@ -158,7 +166,8 @@ export function VanillinEvaluateComponent(
 
       // Maybe wait for constructor onbind method being assigned and run it at the end if avaiable.
       onbind?: () => void;
-    } = { childrenEnv: closureEnvironment };
+    };
+    const state: State = { childrenEnv: closureEnvironment };
 
     function templateToState(template: undefined | typeof state.bodyDOM) {
       if (template) {
@@ -186,17 +195,21 @@ export function VanillinEvaluateComponent(
     }
 
     function evalParamsAndArgs([templateAttributes]: [NamedNodeMap | null], c, cerr) {
+      function assignAttrValue(prev, next: Attr) {
+        prev[next.name] = next.value;
+        return prev;
+      }
       const declaredParams = Array.from(templateAttributes || [])
         .filter((attr) => attr.name !== "name")
-        .reduce(toObject, {});
+        .reduce(assignAttrValue, {});
       const providedArguments = Array.from(element.attributes)
         .filter((attr: Attr) => declaredParams.hasOwnProperty(attr.name))
-        .reduce(toObject, {});
+        .reduce(assignAttrValue, {});
 
       visitArray(
         Object.keys(declaredParams),
         (key, c, _cerr) =>
-          evalMaybeExpression(
+          evalAttributeScript(
             providedArguments[key] || declaredParams[key],
             (value) => c({ name: key, value }),
             // if default value is not provided - couldn't have been parsed - use undefined
@@ -204,10 +217,10 @@ export function VanillinEvaluateComponent(
             closureEnvironment,
             config
           ),
-        (namedArguments) => {
-          namedArguments = namedArguments.reduce(toObject, {});
+        function (namedArguments) {
+          namedArguments = namedArguments.reduce(assignAttrValue, {});
           element.hasAttribute("arguments")
-            ? evalMaybeExpression(
+            ? evalAttributeScript(
                 element.getAttribute("arguments"),
                 (argumentsAttrObject) => c({ argumentsAttrObject, namedArguments }),
                 cerr,
@@ -271,7 +284,7 @@ export function VanillinEvaluateComponent(
 
     function inlineEnvironmentToState([inlineEnv]: [Environment], c, cerr) {
       if (element.hasAttribute("closure")) {
-        evalMaybeExpression(
+        evalAttributeScript(
           element.getAttribute("closure"),
           (closureAttributeValue) => {
             if (closureAttributeValue) {
@@ -312,7 +325,19 @@ export function VanillinEvaluateComponent(
      */
     function bindChildrenElements(_, c, cerr) {
       function run() {
-        bindDOM(children, c, cerr, state.childrenEnv, config);
+        // This environment is used to capture bindings happening in children passed in to component.
+        // It's useful for capturing named <function name="" /> and passing it in to component body.
+        const captureEnv: Environment = { values: {}, prev: state.childrenEnv };
+        bindDOM(
+          children,
+          function (value) {
+            state.bodyEnv = { values: captureEnv.values, prev: state.bodyEnv };
+            c(value);
+          },
+          cerr,
+          captureEnv,
+          config
+        );
       }
       if (usesTemplate && slotSelector) {
         const slot = slotSelector ? element.querySelector(slotSelector) : element;
@@ -353,8 +378,8 @@ export function VanillinEvaluateComponent(
     ) {
       const { templateAttrs, bodyDOM } = templateToState(getTemplate(options));
       inlineEnvironmentToState(getInlineEnvironment(evalParamsAndArgs(templateAttrs)));
-      bindBodyDOM(bodyDOM);
       bindChildrenElements();
+      bindBodyDOM(bodyDOM);
       callOnBind();
     }
     const runner_MetaesFunction: MetaesFunction = {
