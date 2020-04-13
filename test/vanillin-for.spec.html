@@ -1,0 +1,53 @@
+<describe>
+  VanillinFor
+
+  <test>
+    Supports basic for of loop
+
+    <div for="let i of [1,2,3]" bind>i</div>
+    <script>
+      chai.assert.deepEqual(
+        Array.from(testElement.querySelectorAll("div")).map((el) => el.textContent),
+        ["1", "2", "3"]
+      );
+    </script>
+  </test>
+
+  <test>
+    Supports basic for loop
+
+    <div for="let i=0;i<3;i++" bind>i</div>
+    <script>
+      chai.assert.deepEqual(
+        Array.from(testElement.querySelectorAll("div")).map((el) => el.textContent),
+        ["0", "1", "2"]
+      );
+    </script>
+  </test>
+
+  <test>
+    Supports pushing observation
+
+    <script>
+      const array = [1];
+      let calls = 0;
+    </script>
+    <div for="let i of bind(array)">
+      <script>
+        calls++;
+      </script>
+      <span bind>i</span>
+    </div>
+    <script>
+      chai.assert.equal(calls, 1);
+      array.push(2);
+      chai.assert.equal(calls, 2);
+      array.push(3, 4);
+      chai.assert.equal(calls, 4);
+      array.push(...[5]);
+      chai.assert.equal(calls, 5);
+      array.push(6, ...[7]);
+      chai.assert.equal(calls, 7);
+    </script>
+  </test>
+</describe>

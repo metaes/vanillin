@@ -3,13 +3,15 @@ import { promises as fs } from "fs";
 import { describe, it } from "mocha";
 import { getConfig, parse } from "vanillin-extract";
 import { bindDOM } from "../lib/vanillin-0";
+import { defaultScheduler } from "metaes/evaluate";
 
 describe("From HTML tests", async function () {
   const dir = process.cwd() + "/test";
   const isHTMLFile = (d) => d.substring(d.lastIndexOf(".") + 1) === "html";
   const readFile = async (file) => ({ name: file, contents: (await fs.readFile(dir + "/" + file)).toString() });
-
   const testFiles = await Promise.all((await fs.readdir(dir)).filter(isHTMLFile).map(readFile));
+
+  const globalEnv = { console, chai, Array, setTimeout };
 
   for (let { contents } of testFiles) {
     for (let element of parse(contents)) {
@@ -23,8 +25,8 @@ describe("From HTML tests", async function () {
                     insideDescribeNode.childNodes.slice(1),
                     resolve,
                     (e) => reject(e.value || e),
-                    { testElement: insideDescribeNode, console, chai },
-                    getConfig()
+                    { ...globalEnv, testElement: insideDescribeNode },
+                    { ...getConfig(), schedule: defaultScheduler }
                   );
                 });
               });

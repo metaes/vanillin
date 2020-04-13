@@ -250,7 +250,7 @@ export function VanillinEvaluateComponent(
       let inlineEnv;
 
       if (ctor) {
-        const ctorArguments: ComponentConstructorArgs = [element, children, state.bodyEnv, config];
+        const ctorArguments: ComponentConstructorArgs = [element, children, closureEnvironment, config];
         const constructorResult = ctor(...ctorArguments);
 
         function resultReady(constructorResult?) {
