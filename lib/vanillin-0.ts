@@ -108,22 +108,20 @@ export type ObservableResult = {
   property?: string;
 };
 
-/**
- * Will collect variables belonging both to `bottomEnvironment` or top environment.
- * Top environment is calculated from `prev` properties recursively.
- *
- * @param resultsCallback
- * @param bottomEnvironment
- */
 export const collectObservableVars = (
-  resultsCallback: (result: ObservableResult) => void,
+  pushResult: (result: ObservableResult) => void,
   script: Script,
-  bottomEnvironment: Environment
+  environment: Environment
 ): EvaluationListener => {
-  let _env: Environment = bottomEnvironment;
-  while (_env.prev) {
-    _env = _env.prev;
+  const results: ObservableResult[] = [];
+  function push(object, property) {
+    if (!results.find((item) => item.object === object && item.property === property)) {
+      const observable = { object, property };
+      results.push(observable);
+      pushResult(observable);
+    }
   }
+
   return ({ e, phase, config }, graph) => {
     if (phase === "exit" && config.script === script) {
       const stack = graph.executionStack;
@@ -132,12 +130,11 @@ export const collectObservableVars = (
         return;
       }
       if (isMemberExpression(e)) {
-        const property = e.computed ? graph.values.get(e.property) : e.property.name;
-        resultsCallback({ object: graph.values.get(e.object), property });
+        push(e.computed ? graph.values.get(e.property) : e.property.name, graph.values.get(e.object));
       } else if (e.type === "Identifier") {
-        const varEnv = getEnvironmentForValue(bottomEnvironment, e.name);
-        if (varEnv) {
-          resultsCallback({ object: varEnv.values, property: e.name });
+        let variableEnv;
+        if ((variableEnv = getEnvironmentForValue(environment, e.name))) {
+          push(variableEnv.values, e.name);
         }
       }
     }

@@ -1,17 +1,17 @@
-import { callcc, lifted } from "metaes/callcc";
+import { liftedAll, lifted, callcc } from "metaes/callcc";
+import { GetValueSync } from "metaes/environment";
 import { createScript } from "metaes/metaes";
-import { ASTNode, Continuation, Environment, Evaluation } from "metaes/types";
+import { Continuation, Environment, ASTNode, Evaluation } from "metaes/types";
 import { EvaluationListener } from "../observable";
 import { getTrampoliningScheduler } from "../scheduler";
 import { ArrayUpdatingMethods, collectObservableVars, ObservableResult, VanillinEvaluationConfig } from "../vanillin-0";
-import { GetValueSync } from "metaes/environment";
 
-const StopIterationType = "StopIteration";
+class PauseException {}
 
-const stopIteration = lifted(function([resumer], c, cerr) {
+const pause = lifted(function ([resumer], c, cerr) {
   // `resumer` is a user level function which can resume iteration using `c` or `cerr` continuation.
   resumer(c, cerr);
-  cerr({ type: StopIterationType });
+  cerr(new PauseException());
 });
 
 const isNode = (node: ASTNode, key: string) => {
@@ -22,7 +22,7 @@ const isNode = (node: ASTNode, key: string) => {
 const getNodeChildren = (node: ASTNode) =>
   Object.keys(node)
     .filter(isNode.bind(null, node))
-    .map(name => ({ key: name, value: node[name] }));
+    .map((name) => ({ key: name, value: node[name] }));
 
 const walkTree = (node: ASTNode, visitor: (node: ASTNode) => void) =>
   (function _walkTree(node) {
@@ -36,33 +36,64 @@ const walkTree = (node: ASTNode, visitor: (node: ASTNode) => void) =>
     }
   })(node);
 
-export function VanillinFor({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
+type Input = { element: HTMLElement };
+
+export function VanillinFor(
+  { element }: Input,
+  c,
+  cerr,
+  closureEnvironment: Environment,
+  config: VanillinEvaluationConfig
+) {
   const { context } = config;
+
+  // Prepare metaes source/script
+  const forStatementHeadSource = element.getAttribute("for");
+  const forStatementSource = `for (${forStatementHeadSource}) callcc(evaluateBody);`;
+  const forStatementScript = createScript(forStatementSource, context.cache);
 
   // Prepare template
   const template = element.cloneNode(true) as HTMLElement;
+  const parentNode = element.parentNode as HTMLElement;
+  let { previousElementSibling, nextElementSibling } = element;
   template.removeAttribute("for");
-  let lastItemAnchor: HTMLElement | null = element.previousElementSibling;
-  let nextItemAnchor: HTMLElement | null = element.nextElementSibling;
-  const parent = element.parentNode as HTMLElement;
-  parent.removeChild(element);
+  parentNode.removeChild(element);
 
-  // Prepare metaes source/script
-  const headerSource = element.getAttribute("for");
-  const forLoopSource = `const bind = (iterable, index) => callcc(applyBind, {iterable, index}); for(${headerSource}) callcc(runBody);`;
-  const script = createScript(forLoopSource, context.cache);
+  // TODO: simplify
+  type Operation = { item: any; index?: number; operation: string; touchedBody?: boolean };
 
-  // Collect observable variables until right-hand side of for-of statement is exited for the first time.
-  walkTree(script.ast, node => {
+  const boundArrayToHTML: HTMLElement[] = [];
+  const boundArrayOperationsQueue: Operation[] = [];
+  const observableResults: ObservableResult[] = [];
+  const forStatementEnvironment: Environment = {
+    values: { pause, callcc, evaluateBody, ...liftedAll({ bind }) },
+    prev: closureEnvironment
+  };
+  // Indicates if interpretation exited loop header for the first time and started to evaluate loop body.
+  let reachedLoopBody = false;
+  let finished = false;
+  let boundObject: any[];
+  let boundContinuation: Continuation | undefined;
+  let currentOperation: Operation | undefined;
+  // Initially it's empty document fragment
+  let itemsContainer: DocumentFragment | HTMLElement = parentNode; // document.createDocumentFragment();
+  let collectObservablesListener: EvaluationListener | null = collectObservableVars(
+    (d) => observableResults.push(d),
+    forStatementScript,
+    closureEnvironment
+  );
+  context.addListener(collectObservablesListener);
+
+  walkTree(forStatementScript.ast, (node) => {
     if (node.type === "ForOfStatement") {
       context.addListener(onRightNodeExited);
 
       function onRightNodeExited(evaluation: Evaluation) {
         if (evaluation.e === node.right && evaluation.phase === "exit") {
           context.removeListener(onRightNodeExited);
-          if (observablesListener) {
-            context.removeListener(observablesListener);
-            observablesListener = null;
+          if (collectObservablesListener) {
+            context.removeListener(collectObservablesListener);
+            collectObservablesListener = null;
             listenToObservables(observableResults);
           }
         }
@@ -70,53 +101,12 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
     }
   });
 
-  // TODO: simplify
-  type Operation = { item: any; index?: number; operation: string; touchedBody?: boolean };
+  mainEval();
 
-  // Indicates if interpretation exited loop header for the first time and started to evaluate loop body.
-  let reachedLoopBody = false;
-  let boundArray: any[];
-  let boundContinuation: Continuation | undefined;
-  let currentOperation: Operation | undefined;
-  const boundArrayToHTML: HTMLElement[] = [];
-  const boundArrayOperationsQueue: Operation[] = [];
-
-  function applyBind({ iterable, index }, c, cerr) {
-    if (boundContinuation && !reachedLoopBody) {
-      cerr(new Error(`Multiple bind() calls in for-of loop are not supported yet.`));
-    } else if (Array.isArray(iterable)) {
-      // Catch only once. Subsequent runs shouldn't override original array.
-      if (!boundArray) {
-        // Iterator is object which should be ECMAScript Iterator. Currently only arrays are supported.
-        boundArray = iterable;
-
-        // Enqueue all new items to the queue.
-        boundArrayOperationsQueue.push(...iterable.map((item, index) => ({ item, index, operation: "add" })));
-      }
-
-      // Catch continuation for later use
-      boundContinuation = c;
-
-      // bind() was called and `iterable` is argument to that call.
-      // Don't pass it immediately forward as if `bind` wasn't used, rather pass empty array to stop loop iteration immediately.
-      // Iteration will be resumed when whole loop ends.
-      c([]);
-    } else {
-      const error = new Error(`Only arrays in bind() call are supported now.`);
-      console.error({
-        source: headerSource,
-        loopSource: forLoopSource,
-        env: loopPrivateEnv,
-        element,
-        error
-      });
-      cerr(error);
-    }
-  }
-
-  function runBody(_, c, cerr, env: Environment) {
+  function evaluateBody(_, c, cerr, env: Environment) {
     reachedLoopBody = true;
-    if (boundArray && currentOperation && currentOperation.operation === "check") {
+
+    if (boundObject && currentOperation && currentOperation.operation === "check") {
       currentOperation.touchedBody = true;
       c();
     } else {
@@ -128,78 +118,66 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
     }
   }
 
-  const evaluateNextItem = (nextElement: HTMLElement, c, cerr, env: Environment) => {
-    if (lastItemAnchor) {
-      lastItemAnchor.insertAdjacentElement("afterend", nextElement);
-    } else if (nextItemAnchor) {
-      nextItemAnchor.insertAdjacentElement("beforebegin", nextElement);
-      nextItemAnchor = null;
+  function evaluateNextItem(nextElement: HTMLElement, c, cerr, env: Environment) {
+    if (previousElementSibling) {
+      previousElementSibling.insertAdjacentElement("afterend", nextElement);
+    } else if (nextElementSibling) {
+      nextElementSibling.insertAdjacentElement("beforebegin", nextElement);
+      nextElementSibling = null;
     } else {
       itemsContainer.appendChild(nextElement);
     }
-    lastItemAnchor = nextElement;
+    previousElementSibling = nextElement;
 
-    GetValueSync("VanillinEvaluateElement", config.interpreters)(
-      nextElement,
-      c,
-      cerr,
-      // Rebuild this environment, skip values added for state control -
-      // call/cc and environment getting should be not available for recurrent DOM binding.
-      // They are under `bodyEnvironment.prev` environment.
-      {
-        values: {
-          ...env.values,
-          stopIteration
-        },
-        prev: environment
-      },
-      config
-    );
-  };
+    GetValueSync("VanillinEvaluateElement", config.interpreters)(nextElement, c, cerr, env, config);
+  }
 
-  // Initially it's empty document fragment
-  let itemsContainer: DocumentFragment | HTMLElement = parent; // document.createDocumentFragment();
+  function bind([target], c, cerr) {
+    if (boundContinuation && !reachedLoopBody) {
+      cerr(new Error(`Multiple bind() calls in for-of loop are not supported yet.`));
+    } else if (Array.isArray(target)) {
+      // Catch only once. Subsequent runs shouldn't override original array.
+      if (!boundObject) {
+        // Iterator is object which should be ECMAScript Iterator. Currently only arrays are supported.
+        boundObject = target;
 
-  const observableResults: ObservableResult[] = [];
-  let observablesListener: EvaluationListener | null = collectObservableVars(
-    observableResults.push.bind(observableResults),
-    script,
-    environment
-  );
-  context.addListener(observablesListener);
+        // Enqueue all new items to the queue.
+        boundArrayOperationsQueue.push(...target.map((item, index) => ({ item, index, operation: "add" })));
+      }
+
+      // Catch continuation for later use
+      boundContinuation = c;
+
+      // bind() was called and `target` is argument to that call.
+      // Don't pass it immediately forward as if `bind` wasn't used, rather pass empty array to stop loop iteration immediately.
+      // Iteration will be resumed when whole loop ends.
+      c([]);
+    } else {
+      const error = new Error(`Only arrays in bind() call are supported now.`);
+      console.error({
+        source: forStatementHeadSource,
+        loopSource: forStatementSource,
+        env: forStatementEnvironment,
+        element,
+        error
+      });
+      cerr(error);
+    }
+  }
 
   function listenToObservables(observableResults: ObservableResult[]) {
-    function evaluate() {
-      if (boundArray) {
-        // 1. Find boundContinuation again, because environment state may change
-        // 2. rerun loop body for each element
-        boundArrayOperationsQueue.push(...boundArray.map((item, index) => ({ item, index, operation: "check" })));
-        mainEval();
-      } else {
-        // TODO: unbind removed elements
-        while (itemsContainer.firstChild) {
-          itemsContainer.removeChild(itemsContainer.firstChild);
-        }
-        context.evaluate(script, console.log, cerr, loopPrivateEnv, {
-          schedule: getTrampoliningScheduler(),
-          ...config,
-          script
-        });
-      }
-    }
-
-    uniqueValues(observableResults).forEach(observable => {
+    for (let observable of observableResults) {
       const { object, property } = observable;
 
       let target;
-      if (object === (target = boundArray) || (target = object[property!]) === boundArray) {
+      if (object === (target = boundObject) || (target = object[property!]) === boundObject) {
         context.addHandler({
           target,
           traps: {
             didApply(object: any[], method, args: any[]) {
               if (ArrayUpdatingMethods.includes(method)) {
                 if (method === object.push) {
-                  boundArrayOperationsQueue.push(...args.map(item => ({ item, operation: "add" })));
+                  boundArrayOperationsQueue.push(...args.map((item) => ({ item, operation: "add" })));
                   boundArrayToHTML.push.apply(boundArrayToHTML, [].fill.call({ length: args.length }, null));
                   evaluateQueue();
                 } else if (method === object.splice) {
@@ -209,7 +187,7 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
                     element.parentNode!.removeChild(element);
                   }
                   boundArrayToHTML.splice.apply(boundArrayToHTML, args);
-                } else if (method === object.pop) {
+                } else if (method === object.unshift) {
                 }
               }
             }
@@ -239,25 +217,31 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
           });
         }
       }
-    });
+    }
+    function evaluate() {
+      if (boundObject) {
+        // 1. Find boundContinuation again, because environment state may change
+        // 2. rerun loop body for each element
+        boundArrayOperationsQueue.push(...boundObject.map((item, index) => ({ item, index, operation: "check" })));
+        mainEval();
+      } else {
+        // TODO: unbind removed elements
+        while (itemsContainer.firstChild) {
+          itemsContainer.removeChild(itemsContainer.firstChild);
+        }
+        context.evaluate(forStatementScript, console.log, cerr, forStatementEnvironment, {
+          schedule: getTrampoliningScheduler(),
+          ...config,
+          script: forStatementScript
+        });
+      }
+    }
   }
 
-  // Environment used by loop host code, those should not be visible to user space code.
-  const loopPrivateEnv: Environment = {
-    internal: true,
-    prev: environment,
-    values: {
-      applyBind,
-      runBody,
-      callcc
-    }
-  };
-
-  let finished = false;
   function finish() {
     if (!finished) {
       //parent.appendChild(itemsContainer);
-      itemsContainer = parent;
+      itemsContainer = parentNode;
       c();
       finished = true;
     }
@@ -274,8 +258,8 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
     reachedLoopBody = false;
     boundContinuation = undefined;
     context.evaluate(
-      script,
-      () => {
+      forStatementScript,
+      function () {
         if (currentOperation && currentOperation.operation === "check") {
           boundArrayToHTML[currentOperation.index].style.display = currentOperation.touchedBody ? null : "none";
         }
@@ -285,32 +269,17 @@ export function VanillinFor({ element }, c, cerr, environment, config: VanillinE
           finish();
         }
       },
-      e => {
-        if (e.type === StopIterationType) {
+      function (e) {
+        if (e instanceof PauseException) {
           finish();
         } else {
-          console.error({ forLoopSource, environment, element });
+          console.error({ forLoopSource: forStatementSource, environment: closureEnvironment, element });
           console.error(e);
           cerr(e);
         }
       },
-      loopPrivateEnv,
-      { ...config, script }
+      forStatementEnvironment,
+      { ...config, script: forStatementScript }
     );
   }
-
-  mainEval();
-}
-
-function uniqueValues(observableResults: ObservableResult[]) {
-  const added: ObservableResult[] = [];
-  for (let i = 0; i < observableResults.length; i++) {
-    const observable = observableResults[i];
-    const { object, property } = observable;
-    if (added.find(item => item.object === object && item.property === property)) {
-      break;
-    }
-    added.push(observable);
-  }
-  return added;
 }

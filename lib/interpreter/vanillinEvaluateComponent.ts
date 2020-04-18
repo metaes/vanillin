@@ -96,10 +96,8 @@ export function VanillinEvaluateComponent(
   } else if ((attrValue = element.getAttribute(COMPONENT_ATTRIBUTE_NAME_EXPR))) {
     evalAttributeScript(attrValue, getComponentByName, cerr, closureEnvironment, config);
   } else {
-
     getComponentByName(element.nodeName.toLowerCase());
   }
-
 
   function getComponentByName(value: string | any) {
     if (typeof value === "string") {
@@ -381,6 +379,7 @@ export function VanillinEvaluateComponent(
       bindBodyDOM(bodyDOM);
       callOnBind();
     }
+
     const runner_MetaesFunction: MetaesFunction = {
       e:
         runnerAST ||
