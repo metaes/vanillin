@@ -58,7 +58,7 @@ function evalAttributeScript(source: string, c, cerr, closure: Environment, conf
     if (e.value instanceof ParseError) {
       withoutParens();
     } else {
-      console.error({ source, closure, config, e });
+      // console.error({ source, closure, config, e });
       cerr(e);
     }
   });
@@ -66,7 +66,7 @@ function evalAttributeScript(source: string, c, cerr, closure: Environment, conf
   // If it didn't parse, means user could have provided a statement. Try to parse it without parens.
   function withoutParens() {
     evaluate(false, c, (e) => {
-      console.error({ source, closure, config, e });
+      // console.error({ source, closure, config, e });
       cerr(e);
     });
   }

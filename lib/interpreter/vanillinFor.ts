@@ -1,7 +1,7 @@
 import { liftedAll, lifted, callcc } from "metaes/callcc";
 import { GetValueSync } from "metaes/environment";
 import { createScript } from "metaes/metaes";
-import { Continuation, Environment, ASTNode, Evaluation } from "metaes/types";
+import { Continuation, Environment } from "metaes/types";
 import { EvaluationListener } from "../observable";
 import { getTrampoliningScheduler } from "../scheduler";
 import { ArrayUpdatingMethods, collectObservableVars, ObservableResult, VanillinEvaluationConfig } from "../vanillin-0";
@@ -13,28 +13,6 @@ const pause = lifted(function ([resumer], c, cerr) {
   resumer(c, cerr);
   cerr(new PauseException());
 });
-
-const isNode = (node: ASTNode, key: string) => {
-  const value = node[key];
-  return key !== "range" && value && (Array.isArray(value) || (typeof value === "object" && "type" in value));
-};
-
-const getNodeChildren = (node: ASTNode) =>
-  Object.keys(node)
-    .filter(isNode.bind(null, node))
-    .map((name) => ({ key: name, value: node[name] }));
-
-const walkTree = (node: ASTNode, visitor: (node: ASTNode) => void) =>
-  (function _walkTree(node) {
-    if (Array.isArray(node)) {
-      node.forEach(_walkTree);
-    } else {
-      visitor(node);
-      if (typeof node === "object") {
-        getNodeChildren(node).forEach(({ value }) => _walkTree(value));
-      }
-    }
-  })(node);
 
 type Input = { element: HTMLElement };
 
@@ -84,26 +62,10 @@ export function VanillinFor(
   );
   context.addListener(collectObservablesListener);
 
-  walkTree(forStatementScript.ast, (node) => {
-    if (node.type === "ForOfStatement") {
-      context.addListener(onRightNodeExited);
-
-      function onRightNodeExited(evaluation: Evaluation) {
-        if (evaluation.e === node.right && evaluation.phase === "exit") {
-          context.removeListener(onRightNodeExited);
-          if (collectObservablesListener) {
-            context.removeListener(collectObservablesListener);
-            collectObservablesListener = null;
-            listenToObservables(observableResults);
-          }
-        }
-      }
-    }
-  });
-
   mainEval();
 
   function evaluateBody(_, c, cerr, env: Environment) {
+    listenToObservables();
     reachedLoopBody = true;
 
     if (boundObject && currentOperation && currentOperation.operation === "check") {
@@ -165,7 +127,13 @@ export function VanillinFor(
     }
   }
 
-  function listenToObservables(observableResults: ObservableResult[]) {
+  function listenToObservables() {
+    if (!collectObservablesListener) {
+      return;
+    }
+    context.removeListener(collectObservablesListener);
+    collectObservablesListener = null;
+
     for (let observable of observableResults) {
       const { object, property } = observable;
 
@@ -260,6 +228,7 @@ export function VanillinFor(
     context.evaluate(
       forStatementScript,
       function () {
+        listenToObservables();
         if (currentOperation && currentOperation.operation === "check") {
           boundArrayToHTML[currentOperation.index].style.display = currentOperation.touchedBody ? null : "none";
         }
