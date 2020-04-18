@@ -35,6 +35,7 @@ export type ComponentOptions = {
 };
 
 export const COMPONENT_ATTRIBUTE_NAME = "bind-component";
+export const COMPONENT_ATTRIBUTE_NAME_EXPR = "bind-component-expr";
 
 function evalAttributeScript(source: string, c, cerr, closure: Environment, config: VanillinEvaluationConfig) {
   const { context } = config;
@@ -88,19 +89,17 @@ export function VanillinEvaluateComponent(
     window: { DocumentFragment, HTMLElement, NodeList }
   } = config;
 
-  const bindComponentAttrValue = element.getAttribute(COMPONENT_ATTRIBUTE_NAME);
+  let attrValue;
 
-  if (bindComponentAttrValue) {
-    GetValue(
-      { name: bindComponentAttrValue },
-      getComponentByName,
-      () => evalAttributeScript(bindComponentAttrValue, getComponentByName, cerr, closureEnvironment, config),
-      closureEnvironment,
-      config
-    );
+  if ((attrValue = element.getAttribute(COMPONENT_ATTRIBUTE_NAME))) {
+    getComponentByName(attrValue);
+  } else if ((attrValue = element.getAttribute(COMPONENT_ATTRIBUTE_NAME_EXPR))) {
+    evalAttributeScript(attrValue, getComponentByName, cerr, closureEnvironment, config);
   } else {
+
     getComponentByName(element.nodeName.toLowerCase());
   }
+
 
   function getComponentByName(value: string | any) {
     if (typeof value === "string") {

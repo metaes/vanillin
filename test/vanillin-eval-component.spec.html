@@ -48,7 +48,7 @@
 
     <function name="items-list" items>
       <ul>
-        <li for="let item of items" bind-component="'cmp'" item="item"></li>
+        <li for="let item of items" bind-component="cmp" item="item"></li>
       </ul>
     </function>
 
@@ -58,12 +58,28 @@
 
     <script>
       chai.assert.deepEqual(
-        testElement
-          .querySelector("items-list")
-          .querySelectorAll("span")
-          .map((e) => e.textContent),
+        Array.from(testElement.querySelector("items-list").querySelectorAll("span")).map((e) => e.textContent),
         ["1", "2", "3"]
       );
+    </script>
+  </test>
+
+  <test>
+    Defaults component params to undefined
+
+    <script>
+      let _param0, _param1;
+    </script>
+    <function name="f" param0 param1>
+      <script>
+        _param0 = param0;
+        _param1 = param1;
+      </script>
+    </function>
+    <f param1="true"></f>
+    <script>
+      chai.assert.typeOf(_param0, "undefined");
+      chai.assert.typeOf(_param1, "boolean");
     </script>
   </test>
 </describe>

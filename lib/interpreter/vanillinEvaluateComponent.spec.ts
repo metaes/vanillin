@@ -79,6 +79,18 @@ describe("Vanillin components", function () {
       assert.isTrue(called);
     });
 
+    it("provides contructor args", function () {
+      // TODO: finish test
+      let called;
+      defineComponent(env, "component1", {
+        ctor() {
+          called = true;
+        }
+      });
+      bindDOM(`<component1 />`, noop, console.error, env, { ...getConfig(), schedule: defaultScheduler });
+      assert.isTrue(called);
+    });
+
     it("supports constructor returned value", function () {
       const events: string[] = [];
       defineComponent(env, "component1", {

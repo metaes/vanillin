@@ -50,4 +50,25 @@
       chai.assert.equal(calls, 7);
     </script>
   </test>
+
+  <test>
+    Supports unshift observation
+
+    <script>
+      let array = [2];
+    </script>
+    <span for="let item of array" bind>item</span>
+    <script>
+      function assertEquals(expected) {
+        chai.assert.deepEqual(Array.from(testElement.querySelectorAll("span").map((d) => d.textContent)), expected);
+      }
+      assertEquals(["2"]);
+      array.unshift(1);
+      assertEquals(["1", "2"]);
+    </script>
+  </test>
+
+  <test>
+    Supports splice observation
+  </test>
 </describe>

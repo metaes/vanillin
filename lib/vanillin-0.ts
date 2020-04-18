@@ -3,7 +3,11 @@ import { defaultScheduler, visitArray } from "metaes/evaluate";
 import { createScript } from "metaes/metaes";
 import { MemberExpression } from "metaes/nodeTypes";
 import { ASTNode, Continuation, Environment, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
-import { ComponentOptions, COMPONENT_ATTRIBUTE_NAME } from "./interpreter/vanillinEvaluateComponent";
+import {
+  ComponentOptions,
+  COMPONENT_ATTRIBUTE_NAME,
+  COMPONENT_ATTRIBUTE_NAME_EXPR
+} from "./interpreter/vanillinEvaluateComponent";
 import { getVanillinInterpreters } from "./interpreter/vanillinInterpreters";
 import { EvaluationListener, ObservableContext } from "./observable";
 import { getTrampoliningScheduler } from "./scheduler";
@@ -305,7 +309,11 @@ export function VanillinEvaluateElement(
     statements.push("VanillinFor");
   } else if (nodeName === "function") {
     vanillinFunctionDeclaration(element, environment);
-  } else if ((hasAttrs && element.hasAttribute(COMPONENT_ATTRIBUTE_NAME)) || GetValueSync(nodeName, environment)) {
+  } else if (
+    (hasAttrs &&
+      (element.hasAttribute(COMPONENT_ATTRIBUTE_NAME) || element.hasAttribute(COMPONENT_ATTRIBUTE_NAME_EXPR))) ||
+    GetValueSync(nodeName, environment)
+  ) {
     statements.push("VanillinEvaluateComponent");
   } else if (nodeName === "script" && element.textContent) {
     statements.push("VanillinScriptElement");

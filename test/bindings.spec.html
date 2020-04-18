@@ -18,7 +18,7 @@
 
     <function name="a-component"><span>test</span></function>
 
-    <div bind-component="'a-component'"></div>
+    <div bind-component="a-component"></div>
 
     <script>
       chai.assert.equal(testElement.querySelector("div").textContent, "test");
@@ -28,9 +28,13 @@
   <test>
     Supports bind-component attribute by reference
 
-    <function name="f"><span>test</span></function>
-
-    <div bind-component="f"></div>
+    <script>
+      const f = {
+        name: "f",
+        options: { templateString: `<span>test</span>` }
+      };
+    </script>
+    <div bind-component-expr="f"></div>
 
     <script>
       chai.assert.equal(testElement.querySelector("div").textContent, "test");
