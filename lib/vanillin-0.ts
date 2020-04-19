@@ -130,7 +130,7 @@ export const collectObservableVars = (
         return;
       }
       if (isMemberExpression(e)) {
-        push(e.computed ? graph.values.get(e.property) : e.property.name, graph.values.get(e.object));
+        push(graph.values.get(e.object), e.computed ? graph.values.get(e.property) : e.property.name);
       } else if (e.type === "Identifier") {
         let variableEnv;
         if ((variableEnv = getEnvironmentForValue(environment, e.name))) {

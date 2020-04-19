@@ -9,7 +9,6 @@ import { ArrayUpdatingMethods, collectObservableVars, ObservableResult, Vanillin
 class PauseException {}
 
 const pause = lifted(function ([resumer], c, cerr) {
-  // `resumer` is a user level function which can resume iteration using `c` or `cerr` continuation.
   resumer(c, cerr);
   cerr(new PauseException());
 });
@@ -25,12 +24,10 @@ export function VanillinFor(
 ) {
   const { context } = config;
 
-  // Prepare metaes source/script
   const forStatementHeadSource = element.getAttribute("for");
   const forStatementSource = `for (${forStatementHeadSource}) callcc(evaluateBody);`;
   const forStatementScript = createScript(forStatementSource, context.cache);
 
-  // Prepare template
   const template = element.cloneNode(true) as HTMLElement;
   const parentNode = element.parentNode as HTMLElement;
   let { previousElementSibling, nextElementSibling } = element;
@@ -41,13 +38,12 @@ export function VanillinFor(
   type Operation = { item: any; index?: number; operation: string; touchedBody?: boolean };
 
   const boundArrayToHTML: HTMLElement[] = [];
-  const boundArrayOperationsQueue: Operation[] = [];
+  const targetModificationsQueue: Operation[] = [];
   const observableResults: ObservableResult[] = [];
   const forStatementEnvironment: Environment = {
     values: { pause, callcc, evaluateBody, ...liftedAll({ bind }) },
     prev: closureEnvironment
   };
-  // Indicates if interpretation exited loop header for the first time and started to evaluate loop body.
   let reachedLoopBody = false;
   let finished = false;
   let boundObject: any[];
@@ -98,21 +94,11 @@ export function VanillinFor(
     if (boundContinuation && !reachedLoopBody) {
       cerr(new Error(`Multiple bind() calls in for-of loop are not supported yet.`));
     } else if (Array.isArray(target)) {
-      // Catch only once. Subsequent runs shouldn't override original array.
       if (!boundObject) {
-        // Iterator is object which should be ECMAScript Iterator. Currently only arrays are supported.
         boundObject = target;
-
-        // Enqueue all new items to the queue.
-        boundArrayOperationsQueue.push(...target.map((item, index) => ({ item, index, operation: "add" })));
+        targetModificationsQueue.push(...target.map((item, index) => ({ item, index, operation: "add" })));
       }
-
-      // Catch continuation for later use
       boundContinuation = c;
-
-      // bind() was called and `target` is argument to that call.
-      // Don't pass it immediately forward as if `bind` wasn't used, rather pass empty array to stop loop iteration immediately.
-      // Iteration will be resumed when whole loop ends.
       c([]);
     } else {
       const error = new Error(`Only arrays in bind() call are supported now.`);
@@ -145,7 +131,7 @@ export function VanillinFor(
             didApply(object: any[], method, args: any[]) {
               if (ArrayUpdatingMethods.includes(method)) {
                 if (method === object.push) {
-                  boundArrayOperationsQueue.push(...args.map((item) => ({ item, operation: "add" })));
+                  targetModificationsQueue.push(...args.map((item) => ({ item, operation: "add" })));
                   boundArrayToHTML.push.apply(boundArrayToHTML, [].fill.call({ length: args.length }, null));
                   evaluateQueue();
                 } else if (method === object.splice) {
@@ -186,11 +172,12 @@ export function VanillinFor(
         }
       }
     }
+
     function evaluate() {
       if (boundObject) {
         // 1. Find boundContinuation again, because environment state may change
         // 2. rerun loop body for each element
-        boundArrayOperationsQueue.push(...boundObject.map((item, index) => ({ item, index, operation: "check" })));
+        targetModificationsQueue.push(...boundObject.map((item, index) => ({ item, index, operation: "check" })));
         mainEval();
       } else {
         // TODO: unbind removed elements
@@ -216,7 +203,7 @@ export function VanillinFor(
   }
 
   function evaluateQueue() {
-    currentOperation = boundArrayOperationsQueue.shift();
+    currentOperation = targetModificationsQueue.shift();
     if (currentOperation) {
       boundContinuation!([currentOperation.item]);
     }
@@ -232,7 +219,7 @@ export function VanillinFor(
         if (currentOperation && currentOperation.operation === "check") {
           boundArrayToHTML[currentOperation.index].style.display = currentOperation.touchedBody ? null : "none";
         }
-        if (boundArrayOperationsQueue.length) {
+        if (targetModificationsQueue.length) {
           evaluateQueue();
         } else {
           finish();
