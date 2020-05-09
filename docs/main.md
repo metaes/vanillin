@@ -100,7 +100,7 @@ bindDOM(
 Both `onkeydown` and `onkeyup` were bound with Vanillin.
 New thing to note: `event` variable in handlers. It works the same way as in standard DOM. DOM event is bound to `event` reference. Try to run it without Vanillin. Result will be no different.
 
-Other thing browser does is it bounds `this` to element on which an event occured. Vanillin also copies that:
+Other thing browser does is it bounds `this` to element on which an event occurred. Vanillin also copies that:
 
 ```js
 bindDOM(
@@ -231,7 +231,7 @@ As a reminder:
 (b = a ? a.toUpperCase() : ""), a;
 ```
 
-represents _Sequence Expression_, which evaluates all comma separated expressions in order and as result returns value of last expresssion.
+represents _Sequence Expression_, which evaluates all comma separated expressions in order and as result returns value of last expression.
 
 More advanced example:
 
@@ -274,7 +274,7 @@ document.body.appendChild(
 );
 ```
 
-Here we reach out for HTTP resource and indicatie in UI loading state. `get` is synchronous in context of application code, but asynchronous for browser.
+Here we reach out for HTTP resource and indicate in UI loading state. `get` is synchronous in context of application code, but asynchronous for browser.
 
 ### `script` tag and `script` attribute
 
@@ -362,7 +362,7 @@ When using `bind`:
 </ul>
 ```
 
-only modified `<li>` elements will be added or removed. Withoud `bind`, for every change in right-hand side or `ForOfStatement`, all elements will be rerendered.
+only modified `<li>` elements will be added or removed. Without `bind`, for every change in right-hand side or `ForOfStatement`, all elements will be re-rendered.
 
 #### `bind` usage examples
 
@@ -555,7 +555,7 @@ We can fix `ReferenceError` in couple of ways:
 
     > All attribute names on HTML elements in HTML documents get ASCII-lowercased automatically, so the restriction on ASCII uppercase letters doesn’t affect such documents.
 
-    This will be handled by automatic translation betteen camel cased and hypen separated identifiers. The same way as CSS properties are translated between CSS language and DOM JavaScript property names. You'll be able to write `<function user-name>` and use `userName` inside.
+    This will be handled by automatic translation between camel cased and hypen separated identifiers. The same way as CSS properties are translated between CSS language and DOM JavaScript property names. You'll be able to write `<function user-name>` and use `userName` inside.
 
 2. Modify _creation_ time function context:
 
@@ -834,7 +834,7 @@ Explanation:
     })();
     ```
 
-3. In component constructor at `[3]` we've immediately appended children to the component template. Here lies the key: we shouldn't do that that early, because children elements become part of _template_. And template **can't** see surrouding scope of `<panel>`, because `<panel>` is like a function call it supports only static variable binding.
+3. In component constructor at `[3]` we've immediately appended children to the component template. Here lies the key: we shouldn't do that that early, because children elements become part of _template_. And template **can't** see surrounding scope of `<panel>`, because `<panel>` is like a function call it supports only static variable binding.
 4. If not _that early_, then when?
 
 Let's see:
