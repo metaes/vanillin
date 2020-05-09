@@ -17,8 +17,14 @@ type ComponentConstructorResult = {
   onunbind?: () => void;
 };
 
-export type ComponentConstructorArgs = [HTMLElement, (Node & ChildNode)[], Environment, VanillinEvaluationConfig];
-export type ComponentConstructor = (...args: ComponentConstructorArgs) => void | ComponentConstructorResult;
+export type ComponentConstructor = (
+  element: HTMLElement,
+  children: (Node & ChildNode)[],
+  env: Environment,
+  config: VanillinEvaluationConfig
+) => void | ComponentConstructorResult;
+
+export type ComponentConstructorParams = Parameters<ComponentConstructor>;
 
 export interface ComponentDefinition {
   name: string;
@@ -26,7 +32,7 @@ export interface ComponentDefinition {
 }
 
 export type ComponentOptions = {
-  ctor?: ComponentConstructor | ((...args: ComponentConstructorArgs) => Promise<ComponentConstructor>) | null;
+  ctor?: ComponentConstructor | ((...args: ComponentConstructorParams) => Promise<ComponentConstructor>) | null;
   templateString?: string;
   templateUrl?: string;
   templateNode?: Node | NodeList;
@@ -247,7 +253,7 @@ export function VanillinEvaluateComponent(
       let inlineEnv;
 
       if (ctor) {
-        const ctorArguments: ComponentConstructorArgs = [element, children, closureEnvironment, config];
+        const ctorArguments: ComponentConstructorParams = [element, children, closureEnvironment, config];
         const constructorResult = ctor(...ctorArguments);
 
         function resultReady(constructorResult?) {

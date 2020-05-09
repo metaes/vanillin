@@ -1,6 +1,6 @@
-import { ComponentConstructorArgs } from "./interpreter/vanillinEvaluateComponent";
+import { ComponentConstructorParams } from "./interpreter/vanillinEvaluateComponent";
 
-export const load = <T>(path: string) => (..._: ComponentConstructorArgs) =>
+export const load = <T>(path: string) => (..._: ComponentConstructorParams) =>
   new Promise<T>((resolve, reject) => {
     const script = document.createElement("script");
     script.src = path;
