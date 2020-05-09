@@ -15,15 +15,16 @@
   },
   "main": "main",
   "scripts": {
-    "test": "mocha --recursive vanillin-0.spec lib/",
+    "test": "mocha --recursive './lib/**/*.spec.js' './test/**/*.spec.js' --watch",
     "dist:compile": "tsc --project tsconfig-build.json",
-    "dist:copy": "cp package.json README.md tsconfig.json webpack.config.js build/lib",
-    "dist:dry": "npm run dist:compile; npm run dist:copy; cd build/lib; webpack; npm publish --dry-run",
+    "dist:copy": "cp package.json README.md tsconfig.json webpack.config.js build/lib; cp -r build/node_modules/metaes/lib build/metaes",
+    "dist:dry": "npm run dist:compile; npm run dist:copy; cd build/; webpack; npm publish --dry-run",
     "dist": "npm run dist:compile; npm run dist:copy; cd build/lib; webpack; npm publish",
     "webpack": "webpack"
   },
   "license": "MIT",
   "devDependencies": {
+    "@types/chai": "^4.2.11",
     "chai": "^4.2.0",
     "mocha": "^5.2.0",
     "webpack": "^4.29.0",

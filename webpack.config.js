@@ -1,9 +1,12 @@
 const path = require("path");
 
 module.exports = {
-  entry: "./main-browser-standalone.js",
+  entry: "./lib/main-browser-standalone.js",
   output: {
     path: path.resolve(__dirname),
-    filename: "vanillin.bundle.js"
+    filename: "build/vanillin.bundle.js"
+  },
+  resolve: {
+    modules: ["node_modules", "build"]
   }
 };

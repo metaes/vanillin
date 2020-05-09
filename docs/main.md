@@ -243,7 +243,7 @@ metaesEval(`path=>callcc(fetcher, path)`, fn => (metaFetch = fn), console.error,
             .then(d => d.json())
             .then(c)
             .catch(cerr),
-    callcc: callWithCurrentContinuation
+    callcc
 });
 
 document.body.appendChild(

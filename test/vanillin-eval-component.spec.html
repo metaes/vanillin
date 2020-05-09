@@ -1,0 +1,85 @@
+<describe>
+  Vanillin components
+
+  <test>
+    Supports named arguments
+
+    <function name="f" text text2>
+      <span bind>text + ' ' + text2</span>
+    </function>
+    <f text="'hello'" text2="'world'"></f>
+    <script>
+      chai.assert.equal(testElement.querySelectorAll("span")[1].textContent, "hello world");
+    </script>
+  </test>
+
+  <test>
+    Supports passed children
+
+    <function name="container">
+      <div bind>children[0]</div>
+    </function>
+    <container><h2>Title</h2></container>
+    <script>
+      chai.assert.equal(
+        testElement.querySelector("container").toSource(),
+        `<container><div bind><h2>Title</h2></div></container>`
+      );
+    </script>
+  </test>
+
+  <test>
+    Supports named children
+
+    <function name="container">
+      <div bind>children['title']</div>
+    </function>
+    <container><h2 name="title">Title</h2></container>
+    <script>
+      chai.assert.equal(
+        testElement.querySelector("container").toSource(),
+        `<container><div bind><h2 name="title">Title</h2></div></container>`
+      );
+    </script>
+  </test>
+
+  <test>
+    Supports passed children evaluated as functions
+
+    <function name="items-list" items>
+      <ul>
+        <li for="let item of items" bind-component="cmp" item="item"></li>
+      </ul>
+    </function>
+
+    <items-list items="[1,2,3]">
+      <function name="cmp" item><span bind>item</span></function>
+    </items-list>
+
+    <script>
+      chai.assert.deepEqual(
+        Array.from(testElement.querySelector("items-list").querySelectorAll("span")).map((e) => e.textContent),
+        ["1", "2", "3"]
+      );
+    </script>
+  </test>
+
+  <test>
+    Defaults component params to undefined
+
+    <script>
+      let _param0, _param1;
+    </script>
+    <function name="f" param0 param1>
+      <script>
+        _param0 = param0;
+        _param1 = param1;
+      </script>
+    </function>
+    <f param1="true"></f>
+    <script>
+      chai.assert.typeOf(_param0, "undefined");
+      chai.assert.typeOf(_param1, "boolean");
+    </script>
+  </test>
+</describe>

@@ -1,0 +1,73 @@
+<describe>
+  VanillinFor
+
+  <test>
+    Supports basic for of loop
+
+    <div for="let i of [1,2,3]" bind>i</div>
+    <script>
+      chai.assert.deepEqual(
+        Array.from(testElement.querySelectorAll("div")).map((el) => el.textContent),
+        ["1", "2", "3"]
+      );
+    </script>
+  </test>
+
+  <test>
+    Supports basic for loop
+
+    <div for="let i=0;i<3;i++" bind>i</div>
+    <script>
+      chai.assert.deepEqual(
+        Array.from(testElement.querySelectorAll("div")).map((el) => el.textContent),
+        ["0", "1", "2"]
+      );
+    </script>
+  </test>
+
+  <test>
+    Supports pushing observation
+
+    <script>
+      const array = [];
+      let calls = 0;
+    </script>
+    <div for="let i of bind(array)">
+      <script>
+        calls++;
+      </script>
+      <span bind>i</span>
+    </div>
+    <script>
+      array.push(1);
+      chai.assert.equal(calls, 1);
+      array.push(2, 3);
+      chai.assert.equal(calls, 3);
+      array.push(...[4]);
+      chai.assert.equal(calls, 4);
+      array.push(5, ...[6]);
+      chai.assert.equal(calls, 6);
+    </script>
+  </test>
+
+  <!-- <test>
+    Supports unshift observation
+
+    <script>
+      let array = [2];
+    </script>
+    <span for="let item of array" bind>item</span>
+    <script>
+      function assertEquals(expected) {
+        chai.assert.deepEqual(Array.from(testElement.querySelectorAll("span").map((d) => d.textContent)), expected);
+      }
+      assertEquals(["2"]);
+      array.unshift(1);
+      assertEquals(["1", "2"]);
+    </script>
+  </test>
+
+  <test>
+    Supports splice observation
+  </test> -->
+</describe>

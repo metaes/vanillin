@@ -1,11 +1,11 @@
 import { expect } from "chai";
-import { Environment } from "metaes/environment";
 import { createScript, noop } from "metaes/metaes";
-import { ObservableContext } from "metaes/observable";
 import { describe, it } from "mocha";
+import { ObservableContext } from "./observable";
 import { collectObservableVars, evalCollectObserve, ObservableResult, VanillinEvaluationConfig } from "./vanillin-0";
+import { Environment } from "metaes/types";
 
-describe("Collecting observable variables", () => {
+describe.skip("Collecting observable variables", () => {
   it("should collect only observable variables", async () => {
     const global = { a: 1 };
     const ctx = new ObservableContext(global);
@@ -13,7 +13,7 @@ describe("Collecting observable variables", () => {
 
     const evaluate = (source, env?: Environment) => {
       results.length = 0;
-      const listener = collectObservableVars(result => results.push(result), env || ctx.environment);
+      const listener = collectObservableVars((result) => results.push(result), env || ctx.environment);
       ctx.addListener(listener);
       ctx.evaluate(source, undefined, undefined, env);
       ctx.removeListener(listener);
@@ -46,7 +46,7 @@ describe("Collecting observable variables", () => {
     const ctx = new ObservableContext(global);
     const observables: ObservableResult[] = [];
 
-    const listener = collectObservableVars(result => observables.push(result), ctx.environment);
+    const listener = collectObservableVars((result) => observables.push(result), ctx.environment);
     ctx.addListener(listener);
     ctx.evaluate("value");
     ctx.removeListener(listener);
@@ -132,7 +132,7 @@ describe("Collecting observable variables", () => {
     const localEnv = { values: { localValue: 1 }, prev: ctx.environment };
 
     const results: any[] = [];
-    const listener = collectObservableVars(result => results.push(result), localEnv);
+    const listener = collectObservableVars((result) => results.push(result), localEnv);
     ctx.addListener(listener);
     ctx.evaluate("a, localValue", noop, console.error, localEnv);
     ctx.removeListener(listener);

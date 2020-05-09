@@ -1,15 +1,22 @@
-import { Environment } from "metaes/environment";
+import { NotImplementedException } from "metaes/exceptions";
 import { ECMAScriptInterpreters } from "metaes/interpreters";
 import { createScript } from "metaes/metaes";
-import { Continuation, ErrorContinuation } from "metaes/types";
+import { Continuation, Environment, ErrorContinuation } from "metaes/types";
 import { evalCollectObserve, vanillinEval, VanillinEvaluateElement, VanillinEvaluationConfig } from "../vanillin-0";
 import { VanillinEvaluateComponent } from "./vanillinEvaluateComponent";
 import { VanillinFor } from "./vanillinFor";
-import { NotImplementedException } from "metaes/exceptions";
+import { defaultScheduler } from "metaes/evaluate";
+import { GetValueSync } from "metaes/environment";
 
 export function VanillinScriptElement({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   const source = element.textContent;
   const script = createScript(source, config.context.cache);
+  const scriptConfig = {
+    ...config,
+    // setting default scheduler on script, because we don't want to interrupt potentialy synchronous code
+    schedule: defaultScheduler
+  };
+
   if (element.hasAttribute("observe")) {
     let done = false;
     evalCollectObserve(
@@ -20,23 +27,29 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
           c();
         }
       },
-      e => {
+      (e) => {
         console.error({ element, e, source: element.textContent, environment });
         cerr(e);
       },
       environment,
-      config
+      scriptConfig
     );
   } else {
     config.context.evaluate(
       script,
       c,
-      e => {
-        console.error(Object.assign({ element, source, environment }, e));
+      (e) => {
+        console.error({ element, source, environment, ...e });
         cerr(e);
       },
-      environment,
-      config
+      {
+        values: { currentScript: element },
+        prev: environment,
+        // setting internal to true means it's write protected,
+        // so new variables will be created in previous environment
+        internal: true
+      },
+      scriptConfig
     );
   }
 }
@@ -55,7 +68,7 @@ export function VanillinScriptAttribute({ element }, c, cerr, environment, confi
         c();
       }
     },
-    e => {
+    (e) => {
       console.error({ element, e, source: element.textContent, env });
       cerr(e);
     },
@@ -65,10 +78,13 @@ export function VanillinScriptAttribute({ element }, c, cerr, environment, confi
 }
 
 export function VanillinElementTextContent({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
+  const {
+    window: { HTMLElement }
+  } = config;
+
   let done = false;
   try {
-    const value = element.getAttribute("bind");
-    if (!value && element.textContent) {
+    if (element.textContent) {
       const source = element.textContent;
       const script = createScript(source, config.context.cache);
       const onError = (cerr, e) => {
@@ -81,14 +97,22 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
       if (element.hasAttribute("async")) {
         // TODO: remember to collect and repeat here as well
         // Schedule execution and run whenever there is time for it
-        config.context.evaluate(script, r => (element.textContent = r), onError.bind(null, cerr), environment, config);
+        config.context.evaluate(script, (r) => (element.textContent = r), onError.bind(null, cerr), environment, {
+          ...config,
+          script
+        });
         // and continue anyway
         c();
       } else {
         evalCollectObserve(
           script,
-          value => {
-            element.textContent = value;
+          (value) => {
+            if (value instanceof HTMLElement) {
+              element.innerHTML = "";
+              element.appendChild(value);
+            } else {
+              element.textContent = value;
+            }
             if (!done) {
               done = true;
               c(value);
@@ -111,14 +135,15 @@ export function VanillinElementTextContent({ element }, c, cerr, environment, co
 export function VanillinElementAttributes({ element }, c, _cerr, environment, config: VanillinEvaluationConfig) {
   const boundAttrs = element.getAttribute("bind-attrs").split(",");
 
-  boundAttrs.forEach(attrName => {
-    const source = element.getAttribute(attrName);
+  boundAttrs.forEach(function (attrName) {
+    const attrNameCleaned = attrName.trim();
+    const source = element.getAttribute(attrNameCleaned);
     const script = createScript(source, config.context.cache);
 
     evalCollectObserve(
       script,
-      value => (element[attrName] = value),
-      e => console.error({ element, e, source, environment }),
+      (value) => (element[attrNameCleaned] = value),
+      (e) => console.error({ element, e, source, environment }),
       environment,
       config
     );
@@ -130,8 +155,13 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
   // TODO: it should be handled by success continuation when script evaluates for the first time
   let done = false;
   const source = element.getAttribute("if");
+  // previousElSibling should be resolved immediately before inserting element to DOM
   const previousElSibling = element.previousElementSibling;
   const parent = element.parentNode as HTMLElement;
+  if (!parent) {
+    cerr(new Error("Can't use @if attribute on orphaned element. Add it to a parent element first."));
+    return;
+  }
   const template = element.cloneNode(true);
   template.removeAttribute("if");
   parent.removeChild(element);
@@ -140,7 +170,7 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
 
   evalCollectObserve(
     createScript(source, config.context.cache),
-    test => {
+    (test) => {
       if (test) {
         if (!consequentElement) {
           consequentElement = template.cloneNode(true);
@@ -149,7 +179,7 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
           } else {
             parent.prepend(consequentElement);
           }
-          VanillinEvaluateElement(
+          GetValueSync("VanillinEvaluateElement", config.interpreters)(
             consequentElement,
             () => {
               if (!done) {
@@ -174,8 +204,8 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
         }
       }
     },
-    e => {
-      console.error(Object.assign({ element, source, environment }, e));
+    (e) => {
+      console.error({ element, source, environment, ...e });
       cerr(e);
     },
     environment,
@@ -190,9 +220,13 @@ export function VanillinEvaluateChildren(
   environment: Environment,
   config: VanillinEvaluationConfig
 ) {
+  const {
+    window: { Node }
+  } = config;
+
   if (element.children.length) {
     vanillinEval(
-      Array.from(element.children).filter(child => child.nodeType === Node.ELEMENT_NODE) as HTMLElement[],
+      Array.from(element.children).filter((child) => child.nodeType === Node.ELEMENT_NODE) as HTMLElement[],
       c,
       cerr,
       environment,
@@ -203,8 +237,45 @@ export function VanillinEvaluateChildren(
   }
 }
 
-export const VanillinInterpreters: Environment = {
+export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvaluationConfig) {
+  const receiverSource = element.getAttribute("callcc");
+  element.removeAttribute("callcc");
+  config.context.evaluate(
+    createScript(receiverSource, config.context.cache),
+    function (receiver) {
+      if (element.hasAttribute("async")) {
+        receiver(
+          element,
+          // if element has @async prop then upon returning to evaluation the only thing you care about
+          // is rendering this element and its descendants. Don't care about further evaluation, i.e. of adjacent elements.
+          () =>
+            GetValueSync("VanillinEvaluateElement", config.interpreters)(
+              element,
+              console.log,
+              console.error,
+              env,
+              config
+            ),
+          cerr,
+          env,
+          config
+        );
+        // continue evaluation right away
+        c(element);
+      } else {
+        // @async is not present. Stop everything and wait for receiver to resume.
+        receiver(element, c, cerr, env, config);
+      }
+    },
+    cerr,
+    env,
+    config
+  );
+}
+
+export const getVanillinInterpreters = () => ({
   values: {
+    VanillinCallcc,
     VanillinIf,
     VanillinFor,
     VanillinEvaluateChildren,
@@ -212,7 +283,8 @@ export const VanillinInterpreters: Environment = {
     VanillinScriptElement,
     VanillinScriptAttribute,
     VanillinElementTextContent,
-    VanillinElementAttributes
+    VanillinElementAttributes,
+    VanillinEvaluateElement
   },
   prev: ECMAScriptInterpreters
-};
+});

@@ -1,14 +1,18 @@
-import { visitArray } from "metaes/applyEval";
-import { Environment, toEnvironment, getEnvironmentForValue } from "metaes/environment";
+import { getEnvironmentForValue, GetValueSync, toEnvironment } from "metaes/environment";
+import { defaultScheduler, visitArray } from "metaes/evaluate";
 import { createScript } from "metaes/metaes";
-import { ASTNode } from "metaes/nodes/nodes";
 import { MemberExpression } from "metaes/nodeTypes";
-import { EvaluationListener, ObservableContext } from "metaes/observable";
-import { Continuation, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
-import { COMPONENT_ATTRIBUTE_NAME, ComponentOptions } from "./interpreter/vanillinEvaluateComponent";
-import { VanillinInterpreters } from "./interpreter/vanillinInterpreters";
+import { ASTNode, Continuation, Environment, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
+import {
+  ComponentOptions,
+  COMPONENT_ATTRIBUTE_NAME,
+  COMPONENT_ATTRIBUTE_NAME_EXPR
+} from "./interpreter/vanillinEvaluateComponent";
+import { getVanillinInterpreters } from "./interpreter/vanillinInterpreters";
+import { EvaluationListener, ObservableContext } from "./observable";
+import { getTrampoliningScheduler } from "./scheduler";
 import { GetVanillinLib } from "./vanillin-lib";
-import { defineComponent, returnValueOrNull } from "./vanillinEnvironment";
+import { defineComponent } from "./vanillinEnvironment";
 
 export function evalCollect(
   { results, script }: { results: ObservableResult[]; script: Script },
@@ -18,26 +22,26 @@ export function evalCollect(
   config: VanillinEvaluationConfig
 ) {
   const context = config.context;
-  const collector = collectObservableVars(result => results.push(result), environment);
+  const collector = collectObservableVars((result) => results.push(result), script, environment);
   context.addListener(collector);
   context.evaluate(
     script,
-    value => {
+    (value) => {
       context.removeListener(collector);
       c(value);
     },
-    e => {
+    (e) => {
       context.removeListener(collector);
       console.error({ e, environment, source: script.source });
       cerr(e);
     },
     environment,
-    config
+    { ...config, script }
   );
 }
 
 export const ArrayUpdatingMethods = ["splice", "pop", "push", "shift", "unshift"].map(
-  methodName => Array.prototype[methodName]
+  (methodName) => Array.prototype[methodName]
 );
 
 export function evalCollectObserve(
@@ -48,7 +52,7 @@ export function evalCollectObserve(
   config: VanillinEvaluationConfig
 ) {
   const { context } = config;
-  const evaluate = () => context.evaluate(script, c, cerr, environment, config);
+  const evaluate = () => context.evaluate(script, c, cerr, environment, { ...config, script });
 
   function add(target: ObservableResult) {
     const { object, property } = target;
@@ -61,25 +65,30 @@ export function evalCollectObserve(
           }
         },
         didSet(o, p, _v) {
-          if (object === o && p === property) {
-            evaluate();
+          if (object === o) {
+            if (p === property) {
+              evaluate();
+            } else if (Array.isArray(o) && Number(p) === property) {
+              evaluate();
+            }
           }
         }
       }
     });
   }
+
   const results: ObservableResult[] = [];
   evalCollect(
     { results, script },
-    value => {
+    (value) => {
       c(value);
       const added: ObservableResult[] = [];
-      results.forEach(result => {
+      results.forEach((result) => {
         const { object, property } = result;
 
         // If object/property pair was already added, skip adding another handler.
         // This may happen then observable reference occurs in code more than once.
-        if (added.find(found => found.object === object && found.property === property)) {
+        if (added.find((found) => found.object === object && found.property === property)) {
           return;
         }
         add(result);
@@ -99,36 +108,33 @@ export type ObservableResult = {
   property?: string;
 };
 
-/**
- * Will collect variables belonging both to `bottomEnvironment` or top environment.
- * Top environment is calculated from `prev` properties recursively.
- *
- * @param resultsCallback
- * @param bottomEnvironment
- */
 export const collectObservableVars = (
-  resultsCallback: (result: ObservableResult) => void,
-  bottomEnvironment: Environment
+  pushResult: (result: ObservableResult) => void,
+  script: Script,
+  environment: Environment
 ): EvaluationListener => {
-  let _env: Environment = bottomEnvironment;
-  while (_env.prev) {
-    _env = _env.prev;
+  const results: ObservableResult[] = [];
+  function push(object, property) {
+    if (!results.find((item) => item.object === object && item.property === property)) {
+      const observable = { object, property };
+      results.push(observable);
+      pushResult(observable);
+    }
   }
-  return ({ e, phase }, graph) => {
-    if (phase === "exit") {
-      const stack = graph.executionStack;
 
+  return ({ e, phase, config }, graph) => {
+    if (phase === "exit" && config.script === script) {
+      const stack = graph.executionStack;
       // Ignore checking when sitting inside deeper member expression
       if (stack.length > 1 && stack[stack.length - 2].evaluation.e.type === "MemberExpression") {
         return;
       }
       if (isMemberExpression(e)) {
-        const property = e.computed ? graph.values.get(e.property) : e.property.name;
-        resultsCallback({ object: graph.values.get(e.object), property });
+        push(graph.values.get(e.object), e.computed ? graph.values.get(e.property) : e.property.name);
       } else if (e.type === "Identifier") {
-        const varEnv = getEnvironmentForValue(bottomEnvironment, e.name);
-        if (varEnv) {
-          resultsCallback({ object: varEnv.values, property: e.name });
+        let variableEnv;
+        if ((variableEnv = getEnvironmentForValue(environment, e.name))) {
+          push(variableEnv.values, e.name);
         }
       }
     }
@@ -138,39 +144,41 @@ export const collectObservableVars = (
 export interface VanillinEvaluationConfig extends EvaluationConfig {
   context: ObservableContext;
   vanillin: ReturnType<typeof GetVanillinLib>;
+  window: typeof window;
+  [key: string]: any; // allow extensions
 }
 
-export function stringToDOM(source: string) {
-  const document = new DOMParser().parseFromString(source, "text/html");
+export function stringToDOM(source: string, config: VanillinEvaluationConfig): DocumentFragment {
+  const {
+    window: { document, DOMParser }
+  } = config;
 
-  // Also look for head contents.
-  // This is how DOMParser works, it pushes <script>s to head.
-  const head = document.head.childNodes;
-  const body = document.body.childNodes;
-  const nodes: any[] = [];
-  // @ts-ignore
-  nodes.push(...head);
-  // @ts-ignore
-  nodes.push(...body);
-
-  if (nodes.length === 1) {
-    return nodes[0];
-  } else {
-    return nodes;
-  }
+  const doc = new DOMParser().parseFromString(source, "text/html");
+  const fragment = document.createDocumentFragment();
+  doc.head.childNodes.forEach((child) => fragment.appendChild(child));
+  doc.body.childNodes.forEach((child) => fragment.appendChild(child));
+  return fragment;
 }
 
-export function getTemplate({ templateUrl, templateElement, templateString }: ComponentOptions, c, cerr) {
+export function getTemplate(
+  [{ templateUrl, templateNode, templateString }]: [ComponentOptions],
+  c,
+  cerr,
+  env,
+  config: VanillinEvaluationConfig
+) {
+  const { NodeList } = config.window;
+
   if (templateUrl) {
-    createDOMElementFromURL(templateUrl, c, cerr);
-  } else if (templateElement) {
-    if (templateElement instanceof NodeList) {
-      c(Array.from(templateElement).map(node => node.cloneNode(true)));
+    createDOMElementFromURL(templateUrl, c, cerr, env, config);
+  } else if (templateNode) {
+    if (templateNode instanceof NodeList) {
+      c(Array.from(templateNode).map((node) => node.cloneNode(true)));
     } else {
-      c(templateElement.cloneNode(true));
+      c(templateNode.cloneNode(true));
     }
   } else if (templateString) {
-    c(stringToDOM(templateString));
+    c(stringToDOM(templateString, config));
   } else {
     c(null);
   }
@@ -179,72 +187,99 @@ export function getTemplate({ templateUrl, templateElement, templateString }: Co
 // TODO: should rather rely on browser cache
 const templatesCache = new Map<string, any>();
 
-export const createDOMElementFromURL = (templateURL: string, c: Continuation, cerr: ErrorContinuation) =>
-  templatesCache.has(templateURL)
-    ? c(stringToDOM(templatesCache.get(templateURL)))
-    : fetch(templateURL)
-        .then(d => d.text())
-        .then(htmlString => {
+export function createDOMElementFromURL(
+  templateURL: string,
+  c: Continuation<DocumentFragment>,
+  cerr: ErrorContinuation,
+  _env,
+  config: VanillinEvaluationConfig
+) {
+  const {
+    window: { fetch, document }
+  } = config;
+  const absoluteURI = document.baseURI + "/" + templateURL;
+
+  templatesCache.has(absoluteURI)
+    ? c(stringToDOM(templatesCache.get(absoluteURI), config))
+    : fetch(absoluteURI)
+        .then(function (response) {
+          if (!response.ok) {
+            throw Error(response.statusText);
+          } else {
+            return response.text();
+          }
+        })
+        .then((htmlString) => {
           const cleaned = htmlString.trim();
-          templatesCache.set(templateURL, cleaned);
-          c(stringToDOM(cleaned));
+          templatesCache.set(absoluteURI, cleaned);
+          c(stringToDOM(cleaned, config));
         })
         .catch(cerr);
+}
 
 export function bindDOM(
-  dom: HTMLElement | HTMLElement[] | NodeList | string | undefined,
+  dom: HTMLElement | HTMLElement[] | NodeList | DocumentFragment | string | undefined,
   c: Continuation,
   cerr: ErrorContinuation,
   env: Environment | object = {},
   config: Partial<VanillinEvaluationConfig> = {}
 ) {
   if (dom) {
-    if (typeof dom === "string") {
-      dom = stringToDOM(dom) as NodeList | HTMLElement;
+    if (!config.window) {
+      if (typeof window === "undefined") {
+        cerr(new Error("'window` object is not provided in config and can't be found in global scope."));
+        return;
+      } else {
+        config.window = window;
+      }
     }
-    config.vanillin = Object.assign({}, GetVanillinLib(), config.vanillin || {});
-    config.interpreters = toEnvironment(config.interpreters || VanillinInterpreters);
+
+    if (typeof dom === "string") {
+      dom = stringToDOM(dom, config);
+    }
+    config.vanillin = { ...GetVanillinLib(), ...config.vanillin };
+    config.interpreters = toEnvironment(config.interpreters || getVanillinInterpreters());
     if (!config.interpreters.prev) {
-      config.interpreters.prev = VanillinInterpreters;
+      config.interpreters.prev = getVanillinInterpreters();
     }
     if (!config.context) {
       config.context = new ObservableContext(env);
     }
 
-    const shouldReplaceOriginalEnviornment = env && "values" in env && "prev" in env;
-
-    vanillinEval(
-      dom,
-      c,
-      cerr,
-      shouldReplaceOriginalEnviornment ? (env as Environment) : { values: env, prev: config.context.environment },
-      config
-    );
+    vanillinEval(dom, c, cerr, toEnvironment(env), config);
   } else {
     c();
   }
-  // Useful in case provided dom variable was string, now it's a DOM element
+  // Useful in case provided DOM variable was string, now it's a DOM element
   return dom;
 }
 
 export function vanillinEval(
-  dom: HTMLElement | HTMLElement[] | NodeList,
+  dom: HTMLElement | HTMLElement[] | NodeList | HTMLCollection | DocumentFragment,
   c: Continuation,
   cerr: ErrorContinuation,
   env: Environment,
-  config: Partial<VanillinEvaluationConfig> = {}
+  config: VanillinEvaluationConfig
 ) {
-  if (dom instanceof NodeList || Array.isArray(dom)) {
+  const {
+    window: { Node, DocumentFragment, NodeList, HTMLCollection }
+  } = config;
+
+  if (dom instanceof DocumentFragment) {
+    vanillinEval(dom.children, c, cerr, env, config);
+  } else if (Array.isArray(dom) || dom instanceof NodeList || dom instanceof HTMLCollection) {
+    const VanillinEvaluateElement = GetValueSync("VanillinEvaluateElement", config.interpreters);
+
     visitArray(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
-        child => child.nodeType === Node.ELEMENT_NODE
+        (child) => child.nodeType === Node.ELEMENT_NODE
       ),
       (element, c, cerr) => VanillinEvaluateElement(element, c, cerr, env, config),
       c,
       cerr
     );
   } else {
-    VanillinEvaluateElement(dom, c, cerr, env, config);
+    GetValueSync("VanillinEvaluateElement", config.interpreters)(dom, c, cerr, env, config);
   }
 }
 
@@ -255,20 +290,26 @@ export function VanillinEvaluateElement(
   environment: Environment,
   config: VanillinEvaluationConfig
 ) {
-  const hasAttrs = !!element.attributes.length;
-  const statements: any = [];
+  const {
+    window: { HTMLTemplateElement }
+  } = config;
 
+  const hasAttrs = !!element.attributes.length;
+  const statements: string[] = [];
   const nodeName = element.nodeName.toLowerCase();
 
-  if (hasAttrs && element.hasAttribute("if")) {
+  if (hasAttrs && element.hasAttribute("callcc")) {
+    statements.push("VanillinCallcc");
+  } else if (hasAttrs && element.hasAttribute("if")) {
     statements.push("VanillinIf");
   } else if (hasAttrs && element.hasAttribute("for") && nodeName !== "label") {
     statements.push("VanillinFor");
   } else if (nodeName === "function") {
-    vanillinFunctionDeclaration(element, environment, config);
+    vanillinFunctionDeclaration(element, environment);
   } else if (
-    (hasAttrs && element.hasAttribute(COMPONENT_ATTRIBUTE_NAME)) ||
-    returnValueOrNull(config.interpreters, nodeName)
+    (hasAttrs &&
+      (element.hasAttribute(COMPONENT_ATTRIBUTE_NAME) || element.hasAttribute(COMPONENT_ATTRIBUTE_NAME_EXPR))) ||
+    GetValueSync(nodeName, environment)
   ) {
     statements.push("VanillinEvaluateComponent");
   } else if (nodeName === "script" && element.textContent) {
@@ -287,34 +328,34 @@ export function VanillinEvaluateElement(
         statements.push("VanillinScriptAttribute");
       }
     }
-    if (element.children.length) {
+    if (GetValueSync("VanillinExtra", config.interpreters)) {
+      statements.push("VanillinExtra");
+    }
+    if (element.children.length && !(element instanceof HTMLTemplateElement)) {
       statements.push("VanillinEvaluateChildren");
     }
   }
 
   if (statements.length) {
     config.context.evaluate(
-      createScript(
-        {
-          type: "BlockStatement",
-          body: statements.map(type => ({ type, element }))
-        },
-        config.context.cache
-      ),
+      {
+        type: "BlockStatement",
+        body: statements.map((type) => ({ type, element }))
+      },
       c,
       cerr,
       environment,
-      config
+      { schedule: getTrampoliningScheduler(), ...config }
     );
   } else {
     c(element);
   }
 }
 
-function vanillinFunctionDeclaration(element, environment, config: VanillinEvaluationConfig) {
+function vanillinFunctionDeclaration(element, environment: Environment) {
   if (element.hasAttribute("name")) {
-    defineComponent(config.interpreters, element.getAttribute("name")!, null, {
-      templateElement: element.cloneNode(true),
+    defineComponent(environment, element.getAttribute("name")!, {
+      templateNode: element.cloneNode(true),
       closure: environment
     });
     if (element.parentElement) {
@@ -327,13 +368,14 @@ function vanillinFunctionDeclaration(element, environment, config: VanillinEvalu
   }
 }
 
-function bindEventHandlers(element, environment, config: VanillinEvaluationConfig) {
+export function bindEventHandlers(element, environment, config: VanillinEvaluationConfig) {
   const { context } = config;
 
   for (const attr of element.attributes) {
     if (attr.name.substring(0, 2) !== "on") {
       continue;
     }
+
     const eventName = attr.name.substring(2); // remove 'on'
     const source = attr.value;
 
@@ -341,7 +383,7 @@ function bindEventHandlers(element, environment, config: VanillinEvaluationConfi
     let script;
 
     // Add metaes based event handler body
-    element.addEventListener(eventName, async event => {
+    element.addEventListener(eventName, async (event) => {
       try {
         if (!script) {
           script = createScript(source, context.cache);
@@ -354,8 +396,9 @@ function bindEventHandlers(element, environment, config: VanillinEvaluationConfi
           script,
           // ignore success value
           undefined,
-          error => console.error({ env, source, eventName, event, element, error }),
-          env
+          (error) => console.error({ env, source, eventName, event, element, error }),
+          env,
+          { ...config, script, schedule: defaultScheduler }
         );
       } catch (e) {
         console.error({ e, element, source });

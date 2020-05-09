@@ -1,0 +1,47 @@
+<describe>
+  Bindings
+
+  <test>
+    Supports bind attribute
+
+    <script>
+      let value = 44;
+    </script>
+    <div bind>value</div>
+    <script>
+      chai.assert.equal(testElement.querySelector("div").textContent, value);
+    </script>
+  </test>
+
+  <test>
+    Supports bind-component attribute by string
+
+    <function name="a-component"><span>test</span></function>
+
+    <div bind-component="a-component"></div>
+
+    <script>
+      chai.assert.equal(testElement.querySelector("div").textContent, "test");
+    </script>
+  </test>
+
+  <test>
+    Supports bind-component-expr attribute
+
+    <script>
+      const f = {
+        name: "f",
+        options: { templateString: `<span>test</span>` }
+      };
+    </script>
+    <div bind-component-expr="f"></div>
+
+    <script>
+      chai.assert.equal(testElement.querySelector("div").textContent, "test");
+    </script>
+  </test>
+
+  <test>
+    Supports bind-attrs attribute
+  </test>
+</describe>
