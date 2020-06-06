@@ -1,13 +1,11 @@
-require("../patch").patch();
-
 import { defaultScheduler } from "metaes/evaluate";
 import { noop } from "metaes/metaes";
 import { Environment } from "metaes/types";
 import { describe, it, beforeEach } from "mocha";
-import { getConfig } from "vanillin-extract";
 import { bindDOM } from "../vanillin-0";
 import { defineComponent } from "../vanillinEnvironment";
 import { assert } from "chai";
+import { getConfig } from "../../test/utils";
 
 describe("Vanillin components", function () {
   let env: Environment;

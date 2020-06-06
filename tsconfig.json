@@ -1,14 +1,9 @@
 {
   "compileOnSave": true,
   "compilerOptions": {
-    "lib": [
-      "es6",
-      "dom",
-      "es2016.array.include"
-    ],
     "baseUrl": ".",
     "module": "commonjs",
-    "target": "es2018",
+    "target": "ES2019",
     "sourceMap": true,
     "strictNullChecks": true,
     "noUnusedLocals": true,
@@ -16,11 +11,6 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "declaration": false,
-    "paths": {
-      "metaes/*": [
-        "node_modules/metaes/lib/*"
-      ]
-    }
+    "declaration": false
   }
 }

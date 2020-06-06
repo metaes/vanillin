@@ -85,7 +85,7 @@ function isComponentDefinition(value?: any): value is ComponentDefinition {
 let runnerAST: FunctionNode;
 
 export function VanillinEvaluateComponent(
-  { element },
+  { element }: { element: HTMLElement },
   c: Continuation,
   cerr: ErrorContinuation,
   closureEnvironment: Environment,
@@ -131,7 +131,7 @@ export function VanillinEvaluateComponent(
 
     for (const element of children) {
       if (element.hasAttribute("name")) {
-        children[element.getAttribute("name")] = element;
+        children[element.getAttribute("name")!] = element;
       }
     }
 
@@ -224,7 +224,7 @@ export function VanillinEvaluateComponent(
           namedArguments = namedArguments.reduce(assignAttrValue, {});
           element.hasAttribute("arguments")
             ? evalAttributeScript(
-                element.getAttribute("arguments"),
+                element.getAttribute("arguments")!,
                 (argumentsAttrObject) => c({ argumentsAttrObject, namedArguments }),
                 cerr,
                 closureEnvironment,
@@ -288,7 +288,7 @@ export function VanillinEvaluateComponent(
     function inlineEnvironmentToState([inlineEnv]: [Environment], c, cerr) {
       if (element.hasAttribute("closure")) {
         evalAttributeScript(
-          element.getAttribute("closure"),
+          element.getAttribute("closure")!,
           (closureAttributeValue) => {
             if (closureAttributeValue) {
               // closure of component body and component arguments are not included here,
