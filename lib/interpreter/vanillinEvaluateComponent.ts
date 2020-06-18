@@ -198,16 +198,17 @@ export function VanillinEvaluateComponent(
     }
 
     function evalParamsAndArgs([templateAttributes]: [NamedNodeMap | null], c, cerr) {
-      function assignAttrValue(prev, next: Attr) {
-        prev[next.name] = next.value;
+      const assignAttrValue = (nameReplacer?) => (prev, next) => {
+        prev[nameReplacer ? nameReplacer(next.name) : next.name] = next.value;
         return prev;
-      }
+      };
+
       const declaredParams = Array.from(templateAttributes || [])
         .filter((attr) => attr.name !== "name")
-        .reduce(assignAttrValue, {});
+        .reduce(assignAttrValue(), {});
       const providedArguments = Array.from(element.attributes)
         .filter((attr: Attr) => declaredParams.hasOwnProperty(attr.name))
-        .reduce(assignAttrValue, {});
+        .reduce(assignAttrValue(), {});
 
       visitArray(
         Object.keys(declaredParams),
@@ -221,7 +222,10 @@ export function VanillinEvaluateComponent(
             config
           ),
         function (namedArguments) {
-          namedArguments = namedArguments.reduce(assignAttrValue, {});
+          namedArguments = namedArguments.reduce(
+            assignAttrValue((name) => name.replace(/-([a-z])/g, (g) => g[1].toUpperCase())),
+            {}
+          );
           element.hasAttribute("arguments")
             ? evalAttributeScript(
                 element.getAttribute("arguments")!,

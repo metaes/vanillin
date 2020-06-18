@@ -14,6 +14,23 @@
   </test>
 
   <test>
+    Supports mapping dash arguments to camel case
+
+    <script>
+      let result;
+    </script>
+    <function name="f" camel-case-arg>
+      <script>
+        result = camelCaseArg;
+      </script>
+    </function>
+    <f camel-case-arg="'test'" />
+    <script>
+      chai.assert.equal(result, "test");
+    </script>
+  </test>
+
+  <test>
     Supports passed children
 
     <function name="container">
