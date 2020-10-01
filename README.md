@@ -107,7 +107,7 @@ npm install
 
 ## Contribution
 
-Use GitHub [issues](http://github.com/metaes/vanillin/issues) or [pull requests](https://github.com/metaes/vanillin/pulls).
+Use GitHub [issues](https://github.com/metaes/vanillin/issues) or [pull requests](https://github.com/metaes/vanillin/pulls).
 
 ## License
 
