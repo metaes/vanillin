@@ -284,6 +284,16 @@ export function vanillinEval(
   }
 }
 
+export function safe(fn) {
+  return function (this: any, ...args) {
+    try {
+      return fn(...args);
+    } catch {
+      return;
+    }
+  };
+}
+
 export function VanillinEvaluateElement(
   element: HTMLElement,
   c: Continuation,
@@ -310,7 +320,7 @@ export function VanillinEvaluateElement(
   } else if (
     (hasAttrs &&
       (element.hasAttribute(COMPONENT_ATTRIBUTE_NAME) || element.hasAttribute(COMPONENT_ATTRIBUTE_NAME_EXPR))) ||
-    uncps(GetValue)({ name: nodeName }, environment)
+    safe(uncps(GetValue))({ name: nodeName }, environment)
   ) {
     statements.push("VanillinEvaluateComponent");
   } else if (nodeName === "script" && element.textContent) {
@@ -329,7 +339,7 @@ export function VanillinEvaluateElement(
         statements.push("VanillinScriptAttribute");
       }
     }
-    if (uncps(getInterpreter)("VanillinExtra", config)) {
+    if (safe(uncps)(getInterpreter)("VanillinExtra", config)) {
       statements.push("VanillinExtra");
     }
     if (element.children.length && !(element instanceof HTMLTemplateElement)) {
