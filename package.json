@@ -35,6 +35,6 @@
     "webpack-cli": "^3.3.11"
   },
   "dependencies": {
-    "metaes": "^3.0.0"
+    "metaes": "4.4"
   }
 }

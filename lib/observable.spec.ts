@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { evalFn } from "metaes/metaes";
+import { evalFn, uncpsp } from "metaes/metaes";
 import { describe, it } from "mocha";
 import { ObservableContext } from "./observable";
 
@@ -8,7 +8,7 @@ describe("ObservableContext", () => {
     const value = {};
     const context = new ObservableContext(value);
 
-    await evalFn({ context, source: () => (self["foo"] = "bar") });
+    await uncpsp(evalFn(context.evaluate))({ source: () => (self["foo"] = "bar") });
 
     expect(value["foo"]).to.equal("bar");
   });
@@ -150,7 +150,7 @@ describe("ObservableContext", () => {
     const value = {};
     let called = false;
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const context = new ObservableContext(value, {
         didSet(_context, key) {
           context.addHandler({

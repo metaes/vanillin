@@ -1,7 +1,8 @@
-import { getEnvironmentForValue, GetValueSync, toEnvironment } from "metaes/environment";
+import { bindArgs, getInterpreter, uncps } from "metaes";
+import { getEnvironmentForValue, GetValue, toEnvironment } from "metaes/environment";
 import { defaultScheduler, visitArray } from "metaes/evaluate";
-import { createScript } from "metaes/metaes";
 import { MemberExpression } from "metaes/nodeTypes";
+import { createScript } from "metaes/script";
 import { ASTNode, Continuation, Environment, ErrorContinuation, EvaluationConfig, Script } from "metaes/types";
 import {
   ComponentOptions,
@@ -268,7 +269,7 @@ export function vanillinEval(
   if (dom instanceof DocumentFragment) {
     vanillinEval(dom.children, c, cerr, env, config);
   } else if (Array.isArray(dom) || dom instanceof NodeList || dom instanceof HTMLCollection) {
-    const VanillinEvaluateElement = GetValueSync("VanillinEvaluateElement", config.interpreters);
+    const VanillinEvaluateElement = uncps(getInterpreter)("VanillinEvaluateElement", config);
 
     visitArray(
       (Array.isArray(dom) ? dom : (Array.from(dom) as HTMLElement[])).filter(
@@ -279,7 +280,7 @@ export function vanillinEval(
       cerr
     );
   } else {
-    GetValueSync("VanillinEvaluateElement", config.interpreters)(dom, c, cerr, env, config);
+    getInterpreter("VanillinEvaluateElement", bindArgs(dom, c, cerr, env, config), cerr, config);
   }
 }
 
@@ -309,7 +310,7 @@ export function VanillinEvaluateElement(
   } else if (
     (hasAttrs &&
       (element.hasAttribute(COMPONENT_ATTRIBUTE_NAME) || element.hasAttribute(COMPONENT_ATTRIBUTE_NAME_EXPR))) ||
-    GetValueSync(nodeName, environment)
+    uncps(GetValue)({ name: nodeName }, environment)
   ) {
     statements.push("VanillinEvaluateComponent");
   } else if (nodeName === "script" && element.textContent) {
@@ -328,7 +329,7 @@ export function VanillinEvaluateElement(
         statements.push("VanillinScriptAttribute");
       }
     }
-    if (GetValueSync("VanillinExtra", config.interpreters)) {
+    if (uncps(getInterpreter)("VanillinExtra", config)) {
       statements.push("VanillinExtra");
     }
     if (element.children.length && !(element instanceof HTMLTemplateElement)) {

@@ -1,11 +1,12 @@
 import { liftedAll } from "metaes/callcc";
 import { GetValue } from "metaes/environment";
 import { visitArray } from "metaes/evaluate";
-import { createScript, parseFunction } from "metaes/metaes";
-import { evaluateMetaFunction } from "metaes/metafunction";
 import { toException } from "metaes/exceptions";
+import { parseFunction } from "metaes/metaes";
+import { evaluateMetaFunction } from "metaes/metafunction";
 import { ExpressionStatement, FunctionNode, Program } from "metaes/nodeTypes";
 import { ParseError } from "metaes/parse";
+import { createScript } from "metaes/script";
 import { Continuation, Environment, ErrorContinuation, MetaesFunction } from "metaes/types";
 import { getTrampoliningScheduler } from "../scheduler";
 import { bindDOM, bindEventHandlers, getTemplate, VanillinEvaluationConfig } from "../vanillin-0";
@@ -401,7 +402,22 @@ export function VanillinEvaluateComponent(
 
     let finished = false;
     evaluateMetaFunction(
-      runner_MetaesFunction,
+      {
+        metaFunction: runner_MetaesFunction,
+        args: [templateToState, callOnBind, definition.options].concat(
+          Object.values(
+            liftedAll({
+              evalParamsAndArgs,
+              getInlineEnvironment,
+              getTemplate,
+              inlineEnvironmentToState,
+              bindBodyDOM,
+              bindChildrenElements
+            })
+          )
+        ),
+        thisObject: undefined
+      },
       (value) => {
         if (!finished) {
           c(value);
@@ -409,19 +425,7 @@ export function VanillinEvaluateComponent(
         }
       },
       cerr,
-      undefined,
-      [templateToState, callOnBind, definition.options].concat(
-        Object.values(
-          liftedAll({
-            evalParamsAndArgs,
-            getInlineEnvironment,
-            getTemplate,
-            inlineEnvironmentToState,
-            bindBodyDOM,
-            bindChildrenElements
-          })
-        )
-      )
+      undefined
     );
 
     if (element.hasAttribute("async")) {

@@ -1,12 +1,13 @@
+import { bindArgs, getInterpreter } from "metaes";
+import { createInternalEnv } from "metaes/environment";
+import { defaultScheduler } from "metaes/evaluate";
 import { NotImplementedException } from "metaes/exceptions";
 import { ECMAScriptInterpreters } from "metaes/interpreters";
-import { createScript } from "metaes/metaes";
+import { createScript } from "metaes/script";
 import { Continuation, Environment, ErrorContinuation } from "metaes/types";
 import { evalCollectObserve, vanillinEval, VanillinEvaluateElement, VanillinEvaluationConfig } from "../vanillin-0";
 import { VanillinEvaluateComponent } from "./vanillinEvaluateComponent";
 import { VanillinFor } from "./vanillinFor";
-import { defaultScheduler } from "metaes/evaluate";
-import { GetValueSync } from "metaes/environment";
 
 export function VanillinScriptElement({ element }, c, cerr, environment, config: VanillinEvaluationConfig) {
   const source = element.textContent;
@@ -42,13 +43,7 @@ export function VanillinScriptElement({ element }, c, cerr, environment, config:
         console.error({ element, source, environment, ...e });
         cerr(e);
       },
-      {
-        values: { currentScript: element },
-        prev: environment,
-        // setting internal to true means it's write protected,
-        // so new variables will be created in previous environment
-        internal: true
-      },
+      createInternalEnv({ currentScript: element }, environment),
       scriptConfig
     );
   }
@@ -179,16 +174,21 @@ export function VanillinIf({ element }, c, cerr, environment, config: VanillinEv
           } else {
             parent.prepend(consequentElement);
           }
-          GetValueSync("VanillinEvaluateElement", config.interpreters)(
-            consequentElement,
-            () => {
-              if (!done) {
-                done = true;
-                c();
-              }
-            },
+          getInterpreter(
+            "VanillinEvaluateElement",
+            bindArgs(
+              consequentElement,
+              function () {
+                if (!done) {
+                  done = true;
+                  c();
+                }
+              },
+              cerr,
+              environment,
+              config
+            ),
             cerr,
-            environment,
             config
           );
         }
@@ -249,11 +249,10 @@ export function VanillinCallcc({ element }, c, cerr, env, config: VanillinEvalua
           // if element has @async prop then upon returning to evaluation the only thing you care about
           // is rendering this element and its descendants. Don't care about further evaluation, i.e. of adjacent elements.
           () =>
-            GetValueSync("VanillinEvaluateElement", config.interpreters)(
-              element,
-              console.log,
-              console.error,
-              env,
+            getInterpreter(
+              "VanillinEvaluateElement",
+              bindArgs(element, console.log, console.error, env, config),
+              cerr,
               config
             ),
           cerr,

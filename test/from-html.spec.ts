@@ -1,3 +1,4 @@
+import { uncpsp } from "metaes/metaes";
 import * as chai from "chai";
 import * as fs from "fs";
 import { defaultScheduler } from "metaes/evaluate";
@@ -24,15 +25,15 @@ describe("From HTML tests", async function () {
               const testName = insideDescribeNode.childNodes[0].textContent.trim();
 
               async function body() {
-                return new Promise(function (resolve, reject) {
-                  bindDOM(
+                try {
+                  return await uncpsp(bindDOM)(
                     insideDescribeNode.childNodes.slice(1),
-                    resolve,
-                    (e) => reject(e.value?.message || e.message),
                     { ...globalEnv, testElement: insideDescribeNode },
                     { ...config, schedule: defaultScheduler }
                   );
-                });
+                } catch (e) {
+                  throw e.value?.message || e.message;
+                }
               }
 
               if (testName.includes(":skip")) {

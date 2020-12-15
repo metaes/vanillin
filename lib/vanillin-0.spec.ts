@@ -1,9 +1,10 @@
 import { expect } from "chai";
-import { createScript, noop } from "metaes/metaes";
+import { noop } from "metaes/metaes";
 import { describe, it } from "mocha";
 import { ObservableContext } from "./observable";
 import { collectObservableVars, evalCollectObserve, ObservableResult, VanillinEvaluationConfig } from "./vanillin-0";
 import { Environment } from "metaes/types";
+import { createScript } from "metaes/script";
 
 describe.skip("Collecting observable variables", () => {
   it("should collect only observable variables", async () => {

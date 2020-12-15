@@ -1,6 +1,6 @@
-import { liftedAll, lifted, callcc } from "metaes/callcc";
-import { GetValueSync } from "metaes/environment";
-import { createScript } from "metaes/metaes";
+import { bindArgs, getInterpreter } from "metaes";
+import { callcc, lifted, liftedAll } from "metaes/callcc";
+import { createScript } from "metaes/script";
 import { Continuation, Environment } from "metaes/types";
 import { EvaluationListener } from "../observable";
 import { getTrampoliningScheduler } from "../scheduler";
@@ -87,7 +87,7 @@ export function VanillinFor(
     }
     previousElementSibling = nextElement;
 
-    GetValueSync("VanillinEvaluateElement", config.interpreters)(nextElement, c, cerr, env, config);
+    getInterpreter("VanillinEvaluateElement", bindArgs(nextElement, c, cerr, env, config), cerr, config);
   }
 
   function bind([target], c, cerr) {
