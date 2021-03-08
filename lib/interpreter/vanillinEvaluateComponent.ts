@@ -217,8 +217,7 @@ export function VanillinEvaluateComponent(
           evalAttributeScript(
             providedArguments[key] || declaredParams[key],
             (value) => c({ name: key, value }),
-            // if default value is not provided - couldn't have been parsed - use undefined
-            (_error) => c({ name: key }),
+            cerr,
             closureEnvironment,
             config
           ),

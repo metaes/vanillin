@@ -13,14 +13,14 @@ describe("From HTML tests", async function () {
   const readFile = (file) => ({ name: file, contents: fs.readFileSync(dir + "/" + file).toString() });
   const testFiles = fs.readdirSync(dir).filter(isHTMLFile).map(readFile);
 
-  const globalEnv = { console, chai, Array, setTimeout };
+  const globalEnv = { console, chai, Array, setTimeout, undefined };
   const config = getConfig();
 
-  for (let { contents } of testFiles) {
-    for (let element of parse(contents, config.window)) {
+  for (const { contents } of testFiles) {
+    for (const element of parse(contents, config.window)) {
       if (element.nodeName === "describe") {
         describe(element.childNodes[0].textContent.trim(), function () {
-          for (let insideDescribeNode of element.childNodes) {
+          for (const insideDescribeNode of element.childNodes) {
             if (insideDescribeNode.nodeName === "test") {
               const testName = insideDescribeNode.childNodes[0].textContent.trim();
 

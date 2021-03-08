@@ -126,6 +126,15 @@ describe("Vanillin components", function () {
       assert.equal(dom.toSource(), `<component1><span bind>hello world</span></component1>`);
     });
 
+    //   <test>
+    //   Throws error in attribute field value
+
+    //   <function name="f" param1></function>
+
+    //   <!-- x is undefined -->
+    //   <f param1="x"></f>
+    // </test>
+
     // proper environment merging
     // returned environment can be full env
   });
